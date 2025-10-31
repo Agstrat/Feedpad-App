@@ -1,0 +1,9 @@
+{
+  "name": "FeedPad Design",
+  "short_name": "FeedPad",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#512da8",
+  "icons": []
+}
