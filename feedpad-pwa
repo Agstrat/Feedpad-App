@@ -1,0 +1,10 @@
+# Scaffold
+npm create vite@latest feedpad-pwa -- --template react-ts
+cd feedpad-pwa
+
+# Install deps
+npm i
+npm i dexie react-router-dom vite-plugin-pwa jspdf
+
+# Run dev server to verify
+npm run dev
