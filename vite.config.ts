@@ -1,11 +1,8 @@
-// vite.config.ts
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
-// Injected by GH Actions: "/<repo>/" on Pages, "/" in dev
-const base = process.env.VITE_BASE ?? '/'
-
+// GH Actions will pass the base via CLI; default to "/" for dev
 export default defineConfig({
-  base,
+  base: '/',
   plugins: [react()],
 })
