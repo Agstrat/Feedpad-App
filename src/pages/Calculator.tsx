@@ -243,9 +243,10 @@ export default function Calculator() {
 
       {/* Actions — same visual size as Home */}
       <div className="actions">
-        <button className="btn" onClick={exportPDF}>Save Calculations (PDF)</button>
-        <button className="btn ghost" onClick={() => nav('/')}>Save & Return to Home</button>
-      </div>
+  <button className="btn btn-sm" onClick={exportPDF}>Save Calculations (PDF)</button>
+  <button className="btn btn-sm ghost" onClick={() => nav('/')}>Save & Return to Home</button>
+</div>
+
     </div>
   );
 }
