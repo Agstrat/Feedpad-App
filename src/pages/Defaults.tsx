@@ -3,97 +3,90 @@ import { useNavigate } from 'react-router-dom';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
 
 export default function DefaultsPage() {
-  const [form, setForm] = useState<Defaults | null>(null);
-  const [saving, setSaving] = useState(false);
   const nav = useNavigate();
+  const [d, setD] = useState<Defaults | null>(null);
 
-  useEffect(() => { (async () => setForm(await loadDefaults()))(); }, []);
-  if (!form) return <div className="card out"><p>Loading…</p></div>;
+  useEffect(() => { (async () => setD(await loadDefaults()))(); }, []);
 
-  function set<K extends keyof Defaults>(key: K, val: Defaults[K]) {
-    setForm(prev => (prev ? { ...prev, [key]: val } : prev));
-  }
-
-  async function onSave() {
-    setSaving(true);
-    try {
-      await saveDefaults(form!);
-      nav('/'); // return to Home automatically
-    } finally { setSaving(false); }
-  }
+  if (!d) return <div className="card out"><h2 className="v">Default Settings</h2><p>Loading…</p></div>;
 
   return (
     <div className="card out">
       <h2 className="v">Default Settings</h2>
 
-      {/* Keep structural defaults. Removed Cow Type & Bunk/ Cow. */}
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,minmax(0,1fr))', gap: 12 }}>
         <label> Feed Pad Slope (%)
-          <input type="number" step="0.1" value={form.feedPadSlopePct}
-                 onChange={e => set('feedPadSlopePct', Number(e.target.value))}/>
+          <input type="number" step={0.1} value={d.feedPadSlopePct ?? 1}
+                 onChange={e => setD({ ...d, feedPadSlopePct: Number(e.target.value) })}/>
         </label>
 
         <label> Feed Wall Thickness (m)
-          <input type="number" step="0.01" value={form.feedWallThickness}
-                 onChange={e => set('feedWallThickness', Number(e.target.value))}/>
+          <input type="number" step={0.01} value={d.feedWallThickness ?? 0.2}
+                 onChange={e => setD({ ...d, feedWallThickness: Number(e.target.value) })}/>
         </label>
 
         <label> Nib Wall Thickness (m)
-          <input type="number" step="0.01" value={form.nibWallThickness}
-                 onChange={e => set('nibWallThickness', Number(e.target.value))}/>
+          <input type="number" step={0.01} value={d.nibWallThickness ?? 0.15}
+                 onChange={e => setD({ ...d, nibWallThickness: Number(e.target.value) })}/>
         </label>
 
         <label> Feed Wall Post Spacing (m)
-          <input type="number" step="0.1" value={form.feedWallPostSpacing}
-                 onChange={e => set('feedWallPostSpacing', Number(e.target.value))}/>
+          <input type="number" step={0.1} value={d.feedWallPostSpacing ?? 3}
+                 onChange={e => setD({ ...d, feedWallPostSpacing: Number(e.target.value) })}/>
         </label>
 
         <label> Feed Wall Post Size
-          <select value={form.feedWallPostSize}
-                  onChange={e => set('feedWallPostSize', e.target.value)}>
-            <option>40NB</option><option>50NB</option><option>65NB</option><option>80NB</option>
+          <select value={d.feedWallPostSize ?? '65NB'}
+                  onChange={e => setD({ ...d, feedWallPostSize: e.target.value })}>
+            <option>80NB</option><option>65NB</option><option>50NB</option><option>40NB</option>
           </select>
         </label>
 
         <label> Cow Lane Post Spacing (m)
-          <input type="number" step="0.1" value={form.cowLanePostSpacing}
-                 onChange={e => set('cowLanePostSpacing', Number(e.target.value))}/>
+          <input type="number" step={0.1} value={d.cowLanePostSpacing ?? 2.5}
+                 onChange={e => setD({ ...d, cowLanePostSpacing: Number(e.target.value) })}/>
         </label>
 
         <label> Cow Lane Post Size
-          <select value={form.cowLanePostSize}
-                  onChange={e => set('cowLanePostSize', e.target.value)}>
-            <option>40NB</option><option>50NB</option><option>65NB</option><option>80NB</option>
+          <select value={d.cowLanePostSize ?? '50NB'}
+                  onChange={e => setD({ ...d, cowLanePostSize: e.target.value })}>
+            <option>80NB</option><option>65NB</option><option>50NB</option><option>40NB</option>
           </select>
         </label>
 
         <label> Turning Circle Allowance (m)
-          <input type="number" step="0.1" value={form.turningCircle}
-                 onChange={e => set('turningCircle', Number(e.target.value))}/>
+          <input type="number" min={19} step={1} value={d.turningCircle ?? 23}
+                 onChange={e => setD({ ...d, turningCircle: Number(e.target.value) })}/>
         </label>
 
         <label> Entrance Allowance (m)
-          <input type="number" step="0.1" value={form.entranceAllowance}
-                 onChange={e => set('entranceAllowance', Number(e.target.value))}/>
+          <input type="number" step={1} value={d.entranceAllowance ?? 10}
+                 onChange={e => setD({ ...d, entranceAllowance: Number(e.target.value) })}/>
+        </label>
+
+        {/* NEW: Cross Over Width */}
+        <label> Cross Over Width (m)
+          <input type="number" step={0.1} min={0} value={d.crossOverWidth ?? 0}
+                 onChange={e => setD({ ...d, crossOverWidth: Number(e.target.value) })}/>
         </label>
 
         <label> End Post Offset (m)
-          <input type="number" step="0.01" value={form.endPostOffset}
-                 onChange={e => set('endPostOffset', Number(e.target.value))}/>
+          <input type="number" step={0.01} value={d.endPostOffset ?? 0.15}
+                 onChange={e => setD({ ...d, endPostOffset: Number(e.target.value) })}/>
         </label>
 
         <label> Stay Post Offset (m)
-          <input type="number" step="0.01" value={form.stayPostOffset}
-                 onChange={e => set('stayPostOffset', Number(e.target.value))}/>
+          <input type="number" step={0.1} value={d.stayPostOffset ?? 1}
+                 onChange={e => setD({ ...d, stayPostOffset: Number(e.target.value) })}/>
         </label>
-
-        {/* Optional crossover if you’ve stored it; otherwise leave out of the UI.
-            We read it in Calculator with a default 0. */}
-      </section>
+      </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
-        <button className="btn" onClick={onSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save Defaults'}
+        <button
+          className="btn"
+          onClick={async () => { await saveDefaults(d); nav('/'); }}
+        >
+          Save Defaults
         </button>
         <button className="btn ghost" onClick={() => nav('/')}>Cancel</button>
       </div>
