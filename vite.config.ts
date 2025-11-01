@@ -2,7 +2,6 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Base path is injected by Actions for GitHub Pages
 const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
@@ -11,6 +10,11 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // These two lines make new versions activate immediately:
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+      },
       includeAssets: ['assets/logo.png'],
       manifest: {
         name: 'FeedPad',
