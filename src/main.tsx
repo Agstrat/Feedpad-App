@@ -1,7 +1,7 @@
-// src/main.tsx
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
+
 import './styles.css'
 
 import Start from './pages/Start'
@@ -15,7 +15,7 @@ const router = createBrowserRouter(
     { path: '/', element: <Start /> },
     { path: '/defaults', element: <Defaults /> },
     { path: '/calculator', element: <Calculator /> },
-    { path: '*', element: <Start /> }, // simple fallback
+    { path: '*', element: <Start /> },
   ],
   { basename }
 )
