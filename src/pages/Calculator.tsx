@@ -1,149 +1,222 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { jsPDF } from 'jspdf';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
 
-/* ------- Cow weight → bunk allowance (m/cow) ------- */
-const BUNK_BY_CLASS: Record<string, number> = {
-  'HF 100 - 150kg': 0.30,
-  'HF 150 - 200kg': 0.36,
-  'HF 200 - 300kg': 0.41,
-  'HF 300 - 400kg': 0.51,
-  'JX 410 - 500kg': 0.56,
-  'HF 500 - 590kg': 0.61,
-  'HF 590 - 690kg': 0.67,
-  'HF 690 - 790kg': 0.72,
-  'Jersey 430 - 520kg': 0.56, // keep jersey line you used
+/* Cow class → bunk allowance (m/cow) + (optional) throat height if needed later */
+const CLASSES = [
+  ['HF < 60kg',        0.30],
+  ['HF 60 - 100kg',    0.36],
+  ['HF 100 - 150kg',   0.41],
+  ['HF 150 - 200kg',   0.51],
+  ['HF 200 - 300kg',   0.56],
+  ['HF 300 - 400kg',   0.61],
+  ['JX 410 - 500kg',   0.56],
+  ['HF 500 - 590kg',   0.61],
+  ['HF 590 - 690kg',   0.67],
+  ['HF 690 - 780kg',   0.72],
+] as const;
+
+const CLASS_LABELS = CLASSES.map(c => c[0]);
+const bunkFor = (label: string) => {
+  const found = CLASSES.find(c => c[0] === label);
+  return found ? found[1] : 0.67;
 };
 
-const COW_CLASSES = Object.keys(BUNK_BY_CLASS);
+type CalcInputs = {
+  totalCows: number;
+  pctEat: number;          // %
+  lanes: 2 | 4;
+  cowClass: string;
+  turning: number;         // m
+  entrance: number;        // m
+  postSpace: number;       // D7 feed-wall post spacing
+  endOff: number;          // D15
+  stayOff: number;         // D16
+  crossOver: number;       // D12 (optional)
+  slopePct: number;        // %
+};
 
-/* ------- Core derivations (can be swapped to your exact Excel logic) ------- */
-function derive(
-  totalCows: number,
-  pctEat: number,             // 0–100
-  lanes: number,              // 1 or 2
-  cowClass: string,           // maps to bunk allowance
-  turnAllowance: number,      // m
-  entranceAllowance: number,  // m
-  slopePct: number            // from defaults
-) {
-  const bunkPerCow = BUNK_BY_CLASS[cowClass] ?? 0.67;
+function excel_OP4_lenFeedLanes(i: CalcInputs) {
+  const cowsEating = i.totalCows * (i.pctEat / 100);
+  const perRowFactor = i.lanes === 4 ? 0.25 : 0.5;   // 4 lanes → 4 faces, 2 lanes → 2 faces
+  const cowAllow = bunkFor(i.cowClass);             // L1 from class
 
-  const canEat = Math.max(0, Math.round((totalCows || 0) * (pctEat || 0) / 100));
-  const perLane = lanes > 0 ? canEat / lanes : 0;
+  // raw continuous feed-face length
+  const rawLen = cowsEating * perRowFactor * cowAllow;
 
-  // feed lane length (per lane) = cows per lane * bunk per cow
-  const feedLaneLen = perLane * bunkPerCow; // metres
+  // round up to whole bays
+  const bayCount = i.postSpace > 0 ? Math.ceil(rawLen / i.postSpace) : 0;
+  const feedLen = bayCount * i.postSpace;
 
-  // overall pad length (simple baseline from your earlier OP6 snapshot)
-  // OP6 earlier: totalLen = feedLaneLen + crossOver + turning + entrance
-  // (no explicit crossOver given here, so we use turning + entrance + feed lane)
-  const overallLen = turnAllowance + entranceAllowance + feedLaneLen;
+  // add both ends, then include crossover
+  const baseLen = feedLen + 2 * (i.endOff + i.stayOff);
+  const finalLen = baseLen + (i.crossOver || 0);
+  return { rawLen, feedLen, finalLen, cowAllow, cowsEating, perRowFactor };
+}
 
-  // elevation rise across pad with given slope
-  const elevationRise = (slopePct / 100) * overallLen; // metres
-
-  return { bunkPerCow, canEat, perLane, feedLaneLen, overallLen, elevationRise };
+function excel_OP6_overallLen(op4: number, turning: number, entrance: number) {
+  return op4 + (turning || 0) + (entrance || 0);
 }
 
 export default function Calculator() {
+  const nav = useNavigate();
   const [defs, setDefs] = useState<Defaults | null>(null);
 
-  // runtime inputs (Calculator owns these)
-  const [totalCows, setTotalCows] = useState<number>(0);
-  const [pctEat, setPctEat] = useState<number>(100);
-  const [lanes, setLanes] = useState<1 | 2>(2);
+  // ---- runtime inputs ----
+  const [totalCows, setTotalCows] = useState(0);
+  const [pctEat, setPctEat] = useState(100);
+  const [lanes, setLanes] = useState<2 | 4>(2);
   const [cowClass, setCowClass] = useState<string>('HF 590 - 690kg');
-  const [turnAllowance, setTurnAllowance] = useState<number>(23);
-  const [entranceAllowance, setEntranceAllowance] = useState<number>(10);
+  const [turning, setTurning] = useState(23);
+  const [entrance, setEntrance] = useState(10);
 
   useEffect(() => {
     (async () => {
       const d = await loadDefaults();
       setDefs(d);
-      // seed runtime inputs from persisted defaults where sensible
+
+      // seed from saved values where sensible
       setTotalCows(d.totalCows ?? 0);
-      setLanes(d.feedLanes);
-      setCowClass(d.cowType);
-      setTurnAllowance(d.turningCircle);
-      setEntranceAllowance(d.entranceAllowance);
       setPctEat(d.stockingRatePct ?? 100);
+      setTurning(d.turningCircle ?? 23);
+      setEntrance(d.entranceAllowance ?? 10);
+      setCowClass(d.cowType ?? 'HF 590 - 690kg'); // stored label if you saved it previously
+
+      // lanes now belongs to Calculator; if not saved before, default 2
+      setLanes((d.feedLanes as 2 | 4) ?? 2);
     })();
   }, []);
 
   const out = useMemo(() => {
-    const slope = defs?.feedPadSlopePct ?? 1;
-    return derive(totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance, slope);
-  }, [defs, totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance]);
+    if (!defs) return null;
 
-  // optionally persist last-used runtime values (safe, fire-and-forget)
+    const inputs: CalcInputs = {
+      totalCows,
+      pctEat,
+      lanes,
+      cowClass,
+      turning,
+      entrance,
+      postSpace: defs.feedWallPostSpacing ?? 3,  // D7
+      endOff: defs.endPostOffset ?? 0.15,        // D15
+      stayOff: defs.stayPostOffset ?? 1,         // D16
+      crossOver: (defs as any).crossOverWidth ?? 0, // D12 (0 if not stored)
+      slopePct: defs.feedPadSlopePct ?? 1,
+    };
+
+    const op4 = excel_OP4_lenFeedLanes(inputs);
+    const op6 = excel_OP6_overallLen(op4.finalLen, turning, entrance);
+    const rise = op6 * (inputs.slopePct / 100);
+
+    return { inputs, op4, op6, rise };
+  }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
+
+  // Persist last-used session values (safe, fire-and-forget)
   useEffect(() => {
     if (!defs) return;
-    void saveDefaults({
-      ...defs,
+    void saveDefaults({ ...defs,
       totalCows,
       stockingRatePct: pctEat,
       feedLanes: lanes,
       cowType: cowClass,
-      turningCircle: turnAllowance,
-      entranceAllowance,
+      turningCircle: turning,
+      entranceAllowance: entrance,
     });
-  }, [defs, totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance]);
+  }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
+
+  function exportPDF() {
+    if (!defs || !out) return;
+    const doc = new jsPDF();
+
+    doc.setFontSize(14);
+    doc.text('FeedPad – Calculation Summary', 14, 16);
+
+    doc.setFontSize(10);
+    const y = (row: number) => 26 + row * 6;
+
+    doc.text(`Total cows: ${totalCows}`, 14, y(0));
+    doc.text(`% that eat at once: ${pctEat}%`, 14, y(1));
+    doc.text(`Feed lanes: ${lanes}`, 14, y(2));
+    doc.text(`Cow weight range: ${cowClass} (bunk ${out.op4.cowAllow.toFixed(2)} m/cow)`, 14, y(3));
+    doc.text(`Turning circle: ${turning} m`, 14, y(4));
+    doc.text(`Entrance: ${entrance} m`, 14, y(5));
+
+    doc.text(`Feed wall post spacing: ${defs.feedWallPostSpacing} m`, 110, y(1));
+    doc.text(`End offset: ${defs.endPostOffset} m`, 110, y(2));
+    doc.text(`Stay offset: ${defs.stayPostOffset} m`, 110, y(3));
+    doc.text(`Crossover: ${(defs as any).crossOverWidth ?? 0} m`, 110, y(4));
+    doc.text(`Slope: ${defs.feedPadSlopePct}%`, 110, y(5));
+
+    doc.line(14, y(6)-3, 196, y(6)-3);
+
+    doc.text(`Cows eating now: ${Math.round(out.op4.cowsEating)}`, 14, y(6));
+    doc.text(`Per row factor: ${out.op4.perRowFactor}`, 14, y(7));
+    doc.text(`Raw feed-face length: ${out.op4.rawLen.toFixed(2)} m`, 14, y(8));
+    doc.text(`Rounded feed-lane length (OP4): ${out.op4.finalLen.toFixed(2)} m`, 14, y(9));
+    doc.text(`Overall feedpad length (OP6): ${out.op6.toFixed(2)} m`, 14, y(10));
+    doc.text(`Elevation rise @ ${defs.feedPadSlopePct}%: ${out.rise.toFixed(2)} m`, 14, y(11));
+
+    doc.save('feedpad-calculation.pdf');
+  }
+
+  if (!defs || !out) {
+    return <div className="card out"><h2 className="v">Calculator</h2><p>Loading…</p></div>;
+  }
 
   return (
     <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
-      {!defs ? (
-        <p>Loading…</p>
-      ) : (
-        <>
-          {/* Inputs */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-            <label> Total Cows
-              <input type="number" value={totalCows}
-                     onChange={e => setTotalCows(Number(e.target.value))}/>
-            </label>
+      {/* Inputs */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
+        <label> Total Cows
+          <input type="number" value={totalCows}
+                 onChange={e => setTotalCows(Number(e.target.value))}/>
+        </label>
 
-            <label> % that eat at once
-              <input type="number" min={0} max={100} value={pctEat}
-                     onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}/>
-            </label>
+        <label> % that eat at once
+          <input type="number" min={0} max={100} value={pctEat}
+                 onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}/>
+        </label>
 
-            <label> Feed Lanes
-              <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 1 | 2)}>
-                <option value={1}>1</option>
-                <option value={2}>2</option>
-              </select>
-            </label>
+        <label> Feed Lanes
+          <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
+            <option value={2}>2</option>
+            <option value={4}>4</option>
+          </select>
+        </label>
 
-            <label> Cow Weight Range
-              <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
-                {COW_CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </label>
+        <label> Cow Weight Range
+          <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
+            {CLASS_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
+          </select>
+        </label>
 
-            <label> Turning Circle Allowance (m)
-              <input type="number" step="0.1" value={turnAllowance}
-                     onChange={e => setTurnAllowance(Number(e.target.value))}/>
-            </label>
+        <label> Turning Circle Allowance (m)
+          <input type="number" step="0.1" value={turning}
+                 onChange={e => setTurning(Math.max(19, Number(e.target.value)))} /* enforce ≥19 like VBA */ />
+        </label>
 
-            <label> Entrance Allowance (m)
-              <input type="number" step="0.1" value={entranceAllowance}
-                     onChange={e => setEntranceAllowance(Number(e.target.value))}/>
-            </label>
-          </div>
+        <label> Entrance Allowance (m)
+          <input type="number" step="0.1" value={entrance}
+                 onChange={e => setEntrance(Number(e.target.value))}/>
+        </label>
+      </div>
 
-          {/* Outputs */}
-          <div style={{ marginTop: 16 }}>
-            <div><strong>Bunk allowance (m/cow):</strong> {out.bunkPerCow.toFixed(2)}</div>
-            <div><strong>How many eat at once:</strong> {out.canEat}</div>
-            <div><strong>Cows per lane:</strong> {Number.isFinite(out.perLane) ? Math.round(out.perLane) : 0}</div>
-            <div><strong>Feed lane length (per lane):</strong> {out.feedLaneLen.toFixed(2)} m</div>
-            <div><strong>Overall feedpad length (baseline):</strong> {out.overallLen.toFixed(2)} m</div>
-            <div><strong>Elevation rise @ {defs.feedPadSlopePct}%:</strong> {out.elevationRise.toFixed(3)} m</div>
-          </div>
-        </>
-      )}
+      {/* Outputs */}
+      <div style={{ marginTop: 16 }}>
+        <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
+        <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
+        <div><strong>Feed-lane length (OP4):</strong> {out.op4.finalLen.toFixed(2)} m</div>
+        <div><strong>Overall feedpad length (OP6):</strong> {out.op6.toFixed(2)} m</div>
+        <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
+        <button className="btn" onClick={exportPDF}>Save Calculations (PDF)</button>
+        <button className="btn ghost" onClick={() => nav('/')}>Save & Return to Home</button>
+      </div>
     </div>
   );
 }
