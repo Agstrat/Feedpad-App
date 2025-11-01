@@ -1,9 +1,10 @@
+// src/pages/Calculator.tsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
 
-/* Cow class → bunk allowance (m/cow) */
+/* Cow class → bunk allowance (m/cow) — UNCHANGED LIST */
 const CLASSES = [
   ['HF < 60kg',        0.30],
   ['HF 60 - 100kg',    0.36],
@@ -68,6 +69,7 @@ export default function Calculator() {
   const [turning, setTurning] = useState(23);
   const [entrance, setEntrance] = useState(10);
 
+  // load defaults
   useEffect(() => {
     (async () => {
       const d = await loadDefaults();
@@ -81,6 +83,7 @@ export default function Calculator() {
     })();
   }, []);
 
+  // calculate
   const out = useMemo(() => {
     if (!defs) return null;
 
@@ -94,7 +97,7 @@ export default function Calculator() {
       postSpace: defs.feedWallPostSpacing ?? 3,
       endOff: defs.endPostOffset ?? 0.15,
       stayOff: defs.stayPostOffset ?? 1,
-      crossOver: defs.crossOverWidth ?? 0,          // <-- new default value
+      crossOver: defs.crossOverWidth ?? 0,          // crossover now displayed below
       slopePct: defs.feedPadSlopePct ?? 1,
     };
 
@@ -119,6 +122,7 @@ export default function Calculator() {
     });
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
+  // jsPDF export (unchanged logic)
   function exportPDF() {
     if (!defs || !out) return;
     const doc = new jsPDF();
@@ -148,10 +152,17 @@ export default function Calculator() {
     doc.text(`Cows eating now: ${Math.round(out.op4.cowsEating)}`, 14, y(6));
     doc.text(`Feed lane length (per lane): ${out.op4.finalLen.toFixed(2)} m`, 14, y(7));
     doc.text(`Overall feedpad length: ${out.op6.toFixed(2)} m`, 14, y(8));
-    doc.text(`Elevation rise @ ${defs.feedPadSlopePct}%: ${out.rise.toFixed(2)} m`, 14, y(9));
+    doc.text(`Elevation rise @ ${out.inputs.slopePct}%: ${out.rise.toFixed(2)} m`, 14, y(9));
 
     doc.save('feedpad-calculation.pdf');
   }
+
+  // Listen for global "create-pdf" so Home can trigger this
+  useEffect(() => {
+    function onCreatePdf() { exportPDF(); }
+    window.addEventListener('create-pdf' as any, onCreatePdf);
+    return () => window.removeEventListener('create-pdf' as any, onCreatePdf);
+  }, [defs, out, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
   if (!defs || !out) {
     return <div className="card out"><h2 className="v">Calculator</h2><p>Loading…</p></div>;
@@ -161,55 +172,67 @@ export default function Calculator() {
     <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
-      {/* Inputs – explicit order so cow class sits before turning/entrance */}
+      {/* ===== Inputs in a strict 4-column grid ===== */}
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(3, minmax(0,1fr))',
+          gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
           gap: 12,
         }}
       >
-        <label> Total Cows
+        {/* Row 1 */}
+        <label style={{ gridColumn: '1 / span 1' }}>
+          Total Cows
           <input type="number" value={totalCows}
                  onChange={e => setTotalCows(Number(e.target.value))}/>
         </label>
 
-        <label> % that eat at once
+        <label style={{ gridColumn: '2 / span 1' }}>
+          % that eat at once
           <input type="number" min={0} max={100} value={pctEat}
                  onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}/>
         </label>
 
-        <label> Feed Lanes
+        <label style={{ gridColumn: '3 / span 1' }}>
+          Feed Lanes
           <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
             <option value={2}>2</option>
             <option value={4}>4</option>
           </select>
         </label>
 
-        <label> Cow Weight Range
-          <select style={{ minWidth: 180 }} value={cowClass} onChange={e => setCowClass(e.target.value)}>
+        <div style={{ gridColumn: '4 / span 1' }} aria-hidden /> {/* spacer */}
+
+        {/* Row 2 — exact placement request */}
+        <label style={{ gridColumn: '1 / span 1', minWidth: 180 }}>
+          Cow Weight Range
+          <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
             {CLASS_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </label>
 
-        <label> Turning Circle Allowance (m)
+        <div style={{ gridColumn: '2 / span 1' }} aria-hidden /> {/* intentional spacer */}
+
+        <label style={{ gridColumn: '3 / span 1' }}>
+          Turning Circle Allowance (m)
           <input
             type="number"
             min={19}
-            step={1}
+            step={1}                   // step fixed to 1
             value={turning}
             onChange={e => setTurning(Number(e.target.value))}
             onBlur={e => { const v = Number(e.currentTarget.value); if (!Number.isNaN(v) && v < 19) setTurning(19); }}
           />
         </label>
 
-        <label> Entrance Allowance (m)
+        <label style={{ gridColumn: '4 / span 1' }}>
+          Entrance Allowance (m)
           <input type="number" step={1} value={entrance}
                  onChange={e => setEntrance(Number(e.target.value))}/>
         </label>
       </div>
 
-      {/* Outputs */}
+      {/* ===== Outputs ===== */}
       <div style={{ marginTop: 16 }}>
         <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
         <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
@@ -220,6 +243,7 @@ export default function Calculator() {
         <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
       </div>
 
+      {/* ===== Actions (button size controlled by your CSS .btn/.ghost) ===== */}
       <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
         <button className="btn" onClick={exportPDF}>Save Calculations (PDF)</button>
         <button className="btn ghost" onClick={() => nav('/')}>Save & Return to Home</button>
