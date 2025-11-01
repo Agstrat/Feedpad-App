@@ -41,13 +41,11 @@ function excel_OP4_lenFeedLanes(i: CalcInputs) {
   const cowAllow = bunkFor(i.cowClass);
 
   const rawLen = cowsEating * perRowFactor * cowAllow;
-
   const bayCount = i.postSpace > 0 ? Math.ceil(rawLen / i.postSpace) : 0;
   const feedLen = bayCount * i.postSpace;
 
   const baseLen = feedLen + 2 * (i.endOff + i.stayOff);
   const finalLen = baseLen + (i.crossOver || 0);
-
   const cowsPerLane = cowsEating / i.lanes;
 
   return { rawLen, feedLen, finalLen, cowAllow, cowsEating, cowsPerLane };
@@ -162,9 +160,7 @@ export default function Calculator() {
   useEffect(() => {
     if (!out) return;
     const params = new URLSearchParams(search);
-    if (params.get('pdf') === '1') {
-      setTimeout(() => exportPDF(), 50);
-    }
+    if (params.get('pdf') === '1') setTimeout(() => exportPDF(), 50);
   }, [search, out]);
 
   if (!defs || !out) {
@@ -175,7 +171,7 @@ export default function Calculator() {
     <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
-      {/* STRICT 4-COL GRID — matches your mock. Row 2: cow class spans 2 columns. */}
+      {/* ===== Inputs (4-col grid; row 2 has Cow Range spanning 2 cols) ===== */}
       <div className="form-grid">
         {/* Row 1 */}
         <label style={{ gridColumn: '1 / span 1' }}>
@@ -208,7 +204,7 @@ export default function Calculator() {
 
         <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
 
-        {/* Row 2 — Cow Weight Range spans two columns */}
+        {/* Row 2 */}
         <label style={{ gridColumn: '1 / span 2', maxWidth: 420 }}>
           Cow Weight Range
           <select
@@ -248,7 +244,7 @@ export default function Calculator() {
         </label>
       </div>
 
-      {/* Outputs */}
+      {/* ===== Outputs (now directly under inputs) ===== */}
       <div style={{ marginTop: 16 }}>
         <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
         <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
@@ -259,7 +255,7 @@ export default function Calculator() {
         <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
       </div>
 
-      {/* Actions — use smaller buttons; independent of input layout */}
+      {/* ===== Actions (now at the very bottom; smaller buttons) ===== */}
       <div className="actions">
         <button className="btn btn-sm" onClick={exportPDF}>Save Calculations (PDF)</button>
         <button className="btn btn-sm ghost" onClick={() => nav('/')}>Save & Return to Home</button>
