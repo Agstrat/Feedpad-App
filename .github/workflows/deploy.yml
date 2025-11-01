@@ -15,15 +15,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
-            - run: npm ci
+        with:
+          node-version: 20
+
+      # Install deps (no package-lock yet, so use npm i not npm ci)
+      - run: npm i
+
+      # Build with a base path so assets resolve on Pages
       - run: npm run build
         env:
           VITE_BASE: /${{ github.event.repository.name }}/
+
+      # Make client-side routing work on Pages
       - run: cp dist/index.html dist/404.html
+
+      # Upload build output
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
+
   deploy:
     needs: build
     runs-on: ubuntu-latest
@@ -33,3 +43,4 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
