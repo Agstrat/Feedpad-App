@@ -1,14 +1,27 @@
+<!-- index.html -->
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#0f62fe" />
-    <link rel="icon" href="/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>FeedPad</title>
   </head>
   <body>
     <div id="root"></div>
-    <script type="module" src="./src/main.tsx"></script>
+    <script>
+      // One-time nuke of any previously installed service workers (from old PWA builds)
+      (async () => {
+        try {
+          if (!localStorage.getItem('sw-killed')) {
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              for (const r of regs) { try { await r.unregister(); } catch {} }
+              localStorage.setItem('sw-killed', '1');
+            }
+          }
+        } catch {}
+      })();
+    </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
