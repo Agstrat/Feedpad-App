@@ -1,3 +1,4 @@
+// src/main.tsx (or src/main.jsx)
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
@@ -8,15 +9,16 @@ import Start from './pages/Start';
 import Defaults from './pages/Defaults';
 import Calculator from './pages/Calculator';
 
-// Vite exposes the correct base at build: '/Feedpad-App/'
-// Normalize to no trailing slash for React Router
-const basename = import.meta.env.BASE_URL.replace(/\/+$/, '');
+// Use Vite's resolved base so GitHub Pages subpath works ("/<repo>/")
+const basename = import.meta.env.BASE_URL;
 
 const router = createBrowserRouter(
   [
     { path: '/', element: <Start /> },
     { path: '/defaults', element: <Defaults /> },
     { path: '/calculator', element: <Calculator /> },
+    // optional catch-all to land back on Start (safe on GH Pages)
+    { path: '*', element: <Start /> },
   ],
   { basename }
 );
