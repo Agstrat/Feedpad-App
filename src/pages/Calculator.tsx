@@ -26,33 +26,55 @@ type CalcInputs = {
   pctEat: number;              // %
   lanes: 2 | 4;
   cowClass: string;
-  turning: number;             // m
-  entrance: number;            // m
-  postSpace: number;           // D7
-  endOff: number;              // D15
-  stayOff: number;             // D16
-  crossOver: number;           // D12
-  slopePct: number;            // %
+  turning: number;             // m (D13)
+  entrance: number;            // m (D14)
+  postSpace: number;           // (D7)
+  endOff: number;              // (D15)
+  stayOff: number;             // (D16)
+  crossOver: number;           // (D12)  included in OP4
+  slopePct: number;            // (% D17)
+
+  // From Defaults (D1..D4 + extras) — not editable here
+  feedLaneWidth: number;       // D1
+  tractorLaneWidth: number;    // D2
+  feedWallThickness: number;   // D3
+  nibWallThickness: number;    // D4
+  feedAboveCow: number;        // extra default (height diff)
 };
 
-function excel_OP4_lenFeedLanes(i: CalcInputs) {
+function calcOP4_lenFeedLanes(i: CalcInputs) {
   const cowsEating = i.totalCows * (i.pctEat / 100);
-  const perRowFactor = i.lanes === 4 ? 0.25 : 0.5;     // 4 lanes => 4 faces, 2 lanes => 2 faces
+  const perRowFactor = i.lanes === 4 ? 0.25 : 0.5; // 4 lanes => 4 faces; 2 lanes => 2 faces
   const cowAllow = bunkFor(i.cowClass);
 
   const rawLen = cowsEating * perRowFactor * cowAllow;
+
+  // round to bays
   const bayCount = i.postSpace > 0 ? Math.ceil(rawLen / i.postSpace) : 0;
   const feedLen = bayCount * i.postSpace;
 
+  // add ends + crossover (per your VBA)
   const baseLen = feedLen + 2 * (i.endOff + i.stayOff);
   const finalLen = baseLen + (i.crossOver || 0);
+
   const cowsPerLane = cowsEating / i.lanes;
 
   return { rawLen, feedLen, finalLen, cowAllow, cowsEating, cowsPerLane };
 }
 
-function excel_OP6_overallLen(op4: number, turning: number, entrance: number) {
-  return op4 + (turning || 0) + (entrance || 0);
+function calcOP5_width(i: CalcInputs) {
+  // VBA exact:
+  // lanes=4:  (4*D1)+(2*D2)+(4*D3)+(3*D4)
+  // else:     (2*D1)+(2*D3)+(2*D4)+D2
+  if (i.lanes === 4) {
+    return (4 * i.feedLaneWidth) + (2 * i.tractorLaneWidth) + (4 * i.feedWallThickness) + (3 * i.nibWallThickness);
+  }
+  return (2 * i.feedLaneWidth) + (2 * i.feedWallThickness) + (2 * i.nibWallThickness) + i.tractorLaneWidth;
+}
+
+function calcOP6_overallLen(op4_finalLen: number, turning: number, entrance: number) {
+  // OP6 = OP4 + D13 + D14  (crossover already inside OP4)
+  return op4_finalLen + (turning || 0) + (entrance || 0);
 }
 
 export default function Calculator() {
@@ -60,7 +82,7 @@ export default function Calculator() {
   const { search } = useLocation();
   const [defs, setDefs] = useState<Defaults | null>(null);
 
-  // inputs
+  // Inputs
   const [totalCows, setTotalCows] = useState(0);
   const [pctEat, setPctEat] = useState(100);
   const [lanes, setLanes] = useState<2 | 4>(2);
@@ -68,7 +90,7 @@ export default function Calculator() {
   const [turning, setTurning] = useState(23);
   const [entrance, setEntrance] = useState(10);
 
-  // load defaults
+  // Load defaults
   useEffect(() => {
     (async () => {
       const d = await loadDefaults();
@@ -82,9 +104,9 @@ export default function Calculator() {
     })();
   }, []);
 
-  // calculate
   const out = useMemo(() => {
     if (!defs) return null;
+    const dx = defs as any;
 
     const inputs: CalcInputs = {
       totalCows,
@@ -96,18 +118,27 @@ export default function Calculator() {
       postSpace: defs.feedWallPostSpacing ?? 3,
       endOff: defs.endPostOffset ?? 0.15,
       stayOff: defs.stayPostOffset ?? 1,
-      crossOver: defs.crossOverWidth ?? 0,
-      slopePct: defs.feedPadSlopePct ?? 1,
+      crossOver: dx.crossOverWidth ?? 0,
+      slopePct: dx.feedPadSlopePct ?? 1,
+
+      // from defaults; provide safe fallbacks
+      feedLaneWidth: Number(dx.feedLaneWidth ?? 4.7),         // D1
+      tractorLaneWidth: Number(dx.tractorLaneWidth ?? 6.0),   // D2
+      feedWallThickness: Number(dx.feedWallThickness ?? 0.20),// D3 (fallback)
+      nibWallThickness: Number(dx.nibWallThickness ?? 0.20),  // D4 (fallback)
+      feedAboveCow: Number(dx.feedAboveCow ?? 0.150),
     };
 
-    const op4 = excel_OP4_lenFeedLanes(inputs);
-    const op6 = excel_OP6_overallLen(op4.finalLen, turning, entrance);
-    const rise = op6 * (inputs.slopePct / 100);
+    const op4 = calcOP4_lenFeedLanes(inputs);                    // includes crossover
+    const width = calcOP5_width(inputs);                         // OP5
+    const op6 = calcOP6_overallLen(op4.finalLen, turning, entrance); // OP6
+    const rise = op6 * (inputs.slopePct / 100);                  // OP15
+    const area = width * op6;                                    // OP20
 
-    return { inputs, op4, op6, rise };
+    return { inputs, op4, op5: width, op6, op7: turning, op8: entrance, rise, area };
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
-  // remember last used
+  // Save last-used
   useEffect(() => {
     if (!defs) return;
     void saveDefaults({
@@ -121,42 +152,63 @@ export default function Calculator() {
     });
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
-  // jsPDF export (unchanged)
+  // PDF export (structured; uses VBA-matching values)
   function exportPDF() {
     if (!defs || !out) return;
-    const doc = new jsPDF();
+    const dx = defs as any;
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-    doc.setFontSize(14);
-    doc.text('FeedPad – Calculation Summary', 14, 16);
+    const L = 40;
+    let y = 50;
+    const line = (txt: string, indent = 0) => { doc.text(txt, L + indent, y); y += 16; };
+    const h = (txt: string) => {
+      doc.setFontSize(16); doc.setFont('helvetica', 'bold'); line(txt); y += 6;
+      doc.setFontSize(11); doc.setFont('helvetica', 'normal');
+    };
+    const sep = () => { y += 6; doc.line(L, y, 555, y); y += 18; };
 
-    doc.setFontSize(10);
-    const y = (row: number) => 26 + row * 6;
+    doc.setFontSize(18); doc.setFont('helvetica', 'bold');
+    doc.text('Feed Pad Summary', L, y); y += 28;
 
-    doc.text(`Total cows: ${totalCows}`, 14, y(0));
-    doc.text(`% that eat at once: ${pctEat}%`, 14, y(1));
-    doc.text(`Feed lanes: ${lanes}`, 14, y(2));
-    doc.text(`Cow weight range: ${cowClass} (bunk ${out.op4.cowAllow.toFixed(2)} m/cow)`, 14, y(3));
-    doc.text(`Turning circle: ${turning} m`, 14, y(4));
-    doc.text(`Entrance: ${entrance} m`, 14, y(5));
+    // Herd & Feed Pad Details
+    h('Herd & Feed Pad Details');
+    line(`Total cows in the herd: ${out.inputs.totalCows} cows`);
+    line(`Cow breed & weight range: ${out.inputs.cowClass}`);
+    line(`Feed bunk face allowance: ${out.op4.cowAllow.toFixed(2)} m/cow`);
+    line(`% of cows that can eat at once: ${out.inputs.pctEat}%`);
+    line(`Total cows that can eat at any one time: ${Math.round(out.op4.cowsEating)} cows`);
+    line(`Cow lanes: ${out.inputs.lanes}`);
+    line(`Cows per lane: ${Math.round(out.op4.cowsPerLane)} cows`);
+    line(`Feed lane length (includes crossover): ${out.op4.finalLen.toFixed(2)} m`);
+    line(`Center crossover allowance: ${Number(dx.crossOverWidth ?? 0)} m`);
+    line(`Overall length of feed pad (incl. entrance, turning & crossover): ${out.op6.toFixed(2)} m`);
+    line(`Overall feed pad width: ${out.op5.toFixed(2)} m`);
+    sep();
 
-    doc.text(`Cows per lane: ${Math.round(out.op4.cowsPerLane)}`, 110, y(0));
-    doc.text(`Feed wall post spacing: ${defs.feedWallPostSpacing} m`, 110, y(1));
-    doc.text(`End offset: ${defs.endPostOffset} m`, 110, y(2));
-    doc.text(`Stay offset: ${defs.stayPostOffset} m`, 110, y(3));
-    doc.text(`Crossover: ${defs.crossOverWidth ?? 0} m`, 110, y(4));
-    doc.text(`Slope: ${defs.feedPadSlopePct}%`, 110, y(5));
+    // Technical Specifications
+    h('Feed Pad Technical Specifications');
+    line(`Cow lane width (D1): ${out.inputs.feedLaneWidth.toFixed(2)} m`);
+    line(`Tractor lane width (D2): ${out.inputs.tractorLaneWidth.toFixed(2)} m`);
+    line(`Feed wall thickness (D3): ${out.inputs.feedWallThickness.toFixed(2)} m`);
+    line(`Nib wall thickness (D4): ${out.inputs.nibWallThickness.toFixed(2)} m`);
+    line(`Feed above cow lane: ${out.inputs.feedAboveCow.toFixed(3)} m`);
+    line(`Feed wall post spacing: ${defs.feedWallPostSpacing} m`);
+    line(`End offset: ${defs.endPostOffset} m`);
+    line(`Stay offset: ${defs.stayPostOffset} m`);
+    line(`Entrance allowance (D14): ${out.op8} m`);
+    line(`Turning circle allowance (D13): ${out.op7} m`);
+    line(`Feed pad slope: ${Number(dx.feedPadSlopePct ?? 1)} %`);
+    line(`Elevation rise @ slope: ${out.rise.toFixed(2)} m`);
+    sep();
 
-    doc.line(14, y(6)-3, 196, y(6)-3);
-
-    doc.text(`Cows eating now: ${Math.round(out.op4.cowsEating)}`, 14, y(6));
-    doc.text(`Feed lane length (per lane): ${out.op4.finalLen.toFixed(2)} m`, 14, y(7));
-    doc.text(`Overall feedpad length: ${out.op6.toFixed(2)} m`, 14, y(8));
-    doc.text(`Elevation rise @ ${out.inputs.slopePct}%: ${out.rise.toFixed(2)} m`, 14, y(9));
+    // Area
+    h('Catchment / Surface Area');
+    line(`Feed pad surface area (OP5 × OP6): ${Math.round(out.area)} m²`);
 
     doc.save('feedpad-calculation.pdf');
   }
 
-  // Support /calculator?pdf=1 → auto-export after render
+  // Support /calculator?pdf=1
   useEffect(() => {
     if (!out) return;
     const params = new URLSearchParams(search);
@@ -178,13 +230,13 @@ export default function Calculator() {
 
       {/* Two-column layout: LEFT = actions, RIGHT = inputs + outputs */}
       <div className="out">
-        {/* LEFT COLUMN — actions */}
+        {/* LEFT: actions */}
         <div className="actions" style={{ flexDirection: 'column' }}>
           <button className="btn btn-sm" onClick={exportPDF}>Save Calculations (PDF)</button>
           <button className="btn btn-sm ghost" onClick={() => nav('/')}>Save & Return to Home</button>
         </div>
 
-        {/* RIGHT COLUMN — inputs (top) + outputs (below) */}
+        {/* RIGHT: inputs + outputs */}
         <div>
           {/* Inputs */}
           <div className="form-grid">
@@ -197,7 +249,6 @@ export default function Calculator() {
                 onChange={e => setTotalCows(Number(e.target.value))}
               />
             </label>
-
             <label style={{ gridColumn: '2 / span 1' }}>
               % that eat at once
               <input
@@ -208,7 +259,6 @@ export default function Calculator() {
                 onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
               />
             </label>
-
             <label style={{ gridColumn: '3 / span 1' }}>
               Feed Lanes
               <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
@@ -216,7 +266,6 @@ export default function Calculator() {
                 <option value={4}>4</option>
               </select>
             </label>
-
             <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
 
             {/* Row 2 */}
@@ -227,12 +276,9 @@ export default function Calculator() {
                 onChange={e => setCowClass(e.target.value)}
                 style={{ width: '100%' }}
               >
-                {CLASS_LABELS.map(l => (
-                  <option key={l} value={l}>{l}</option>
-                ))}
+                {CLASS_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
               </select>
             </label>
-
             <label style={{ gridColumn: '3 / span 1' }}>
               Turning Circle Allowance (m)
               <input
@@ -247,7 +293,6 @@ export default function Calculator() {
                 }}
               />
             </label>
-
             <label style={{ gridColumn: '4 / span 1' }}>
               Entrance Allowance (m)
               <input
@@ -259,15 +304,17 @@ export default function Calculator() {
             </label>
           </div>
 
-          {/* Outputs directly under inputs */}
+          {/* Outputs */}
           <div style={{ marginTop: 16 }}>
             <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
             <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
             <div><strong>Cows per lane:</strong> {Math.round(out.op4.cowsPerLane)}</div>
             <div><strong>Feed lane length (per lane):</strong> {out.op4.finalLen.toFixed(2)} m</div>
+            <div><strong>Overall feedpad width:</strong> {out.op5.toFixed(2)} m</div>
             <div><strong>Overall feedpad length:</strong> {out.op6.toFixed(2)} m</div>
-            <div><strong>Crossover allowance:</strong> {out.inputs.crossOver ?? 0} m</div>
+            <div><strong>Crossover allowance:</strong> {(defs as any).crossOverWidth ?? 0} m</div>
             <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
+            <div><strong>Catchment area:</strong> {Math.round(out.area)} m²</div>
           </div>
         </div>
       </div>
