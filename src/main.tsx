@@ -1,7 +1,9 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+
 import './styles.css';
+
 import Start from './pages/Start';
 import Defaults from './pages/Defaults';
 import Calculator from './pages/Calculator';
