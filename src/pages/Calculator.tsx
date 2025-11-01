@@ -1,67 +1,67 @@
 // src/pages/Calculator.tsx
 import React, { useEffect, useMemo, useState } from 'react';
+import { loadDefaults, type Defaults } from '../db';
+import { deriveFromDefaults } from '../lib/calc';
 import { downloadJSON, downloadPDF } from '../lib/export';
 
-type Inputs = {
-  cows: number;
-  bunkWidth: number;  // m/cow
-};
-
 export default function Calculator() {
-  // ===== Top-level hooks (do NOT move these inside conditionals) =====
-  const [inputs, setInputs] = useState<Inputs>({ cows: 0, bunkWidth: 0.67 });
+  const [defs, setDefs] = useState<Defaults | null>(null);
 
-  // Example derived value (safe: useMemo at top level)
-  const feedlaneMetres = useMemo(() => {
-    if (!Number.isFinite(inputs.cows) || !Number.isFinite(inputs.bunkWidth)) return 0;
-    return Math.max(0, inputs.cows * inputs.bunkWidth);
-  }, [inputs.cows, inputs.bunkWidth]);
-
-  // Example one-time effect (safe: top level)
   useEffect(() => {
-    // Place any init that must run once here (e.g., load defaults from IndexedDB)
-    // Do not call hooks inside this effect.
+    (async () => setDefs(await loadDefaults()))();
   }, []);
 
-  // ===== Handlers =====
+  if (!defs) return <div className="card out"><p>Loading…</p></div>;
+
+  // Example of runtime overrides (if you want editable cows, etc.)
+  const [cows, setCows] = useState<number>(defs.totalCows);
+
+  const bunkPerCow = defs.bunkPerCow;
+  const lanes = defs.feedLanes;
+
+  // Derived (grey) values driven by defaults + runtime cows
+  const derived = useMemo(() => {
+    return deriveFromDefaults({ ...defs, totalCows: cows });
+  }, [defs, cows]);
+
+  const totalBunkLen = derived.totalBunkLenAllLanes; // m
+
   const onExportJSON = () => {
-    downloadJSON({ inputs, feedlaneMetres }, 'feedpad.json');
+    downloadJSON({ defaults: defs, cowsRuntime: cows, derived }, 'feedpad.json');
   };
 
   const onExportPDF = () => {
-    // Export the visible calculator section; fallback is handled in helper
     downloadPDF('#calculator-root', 'feedpad.pdf');
   };
 
-  // ===== Render =====
   return (
     <div id="calculator-root" className="card out">
       <h2 className="v">Calculator</h2>
 
-      {/* --- SIMPLE DEMO UI (replace with your full UI; keep hooks above) --- */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0,1fr))', gap: 12 }}>
         <label>
           Cows
           <input
             type="number"
-            value={inputs.cows}
-            onChange={(e) => setInputs(s => ({ ...s, cows: Number(e.target.value) }))}
+            value={cows}
+            onChange={(e) => setCows(Number(e.target.value))}
           />
         </label>
 
         <label>
           Bunk width (m/cow)
-          <input
-            type="number"
-            step="0.01"
-            value={inputs.bunkWidth}
-            onChange={(e) => setInputs(s => ({ ...s, bunkWidth: Number(e.target.value) }))}
-          />
+          <input type="number" step="0.01" value={bunkPerCow} readOnly />
         </label>
       </div>
 
-      <div style={{ marginTop: 16 }}>
-        <strong>Feedlane length:</strong> {feedlaneMetres.toFixed(2)} m
+      <div style={{ marginTop: 12 }}>
+        <div><strong>Lanes:</strong> {lanes}</div>
+        <div><strong>Can eat at once:</strong> {derived.cowsCanEatAtOnce}</div>
+        <div><strong>Cows per lane:</strong> {derived.cowsPerLane.toFixed(0)}</div>
+        <div><strong>Bunk length per lane:</strong> {derived.bunkLenPerLane.toFixed(2)} m</div>
+        <div><strong>Total bunk length (all lanes):</strong> {totalBunkLen.toFixed(2)} m</div>
+        <div><strong>Feed lane width (grey):</strong> {defs.feedLaneWidth} m</div>
+        <div><strong>Tractor lane width (grey):</strong> {defs.tractorLaneWidth} m</div>
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
