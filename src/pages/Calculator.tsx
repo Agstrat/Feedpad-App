@@ -160,75 +160,75 @@ export default function Calculator() {
   }
 
   return (
-    <div className="card out" id="calculator-root">
-      <h2 className="v">Calculator</h2>
+    <div className="form-grid">
+  {/* Row 1 */}
+  <label style={{ gridColumn: '1 / span 1' }}>
+    Total Cows
+    <input
+      type="number"
+      value={totalCows}
+      onChange={e => setTotalCows(Number(e.target.value))}
+    />
+  </label>
 
-      {/* STRICT 4-COL GRID; aligned bottoms; no overlap */}
-      <div className="form-grid">
-        {/* Row 1 */}
-        <label style={{ gridColumn: '1 / span 1' }}>
-          Total Cows
-          <input
-            type="number"
-            value={totalCows}
-            onChange={e => setTotalCows(Number(e.target.value))}
-          />
-        </label>
-        <label style={{ gridColumn: '2 / span 1' }}>
-          % that eat at once
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={pctEat}
-            onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
-          />
-        </label>
-        <label style={{ gridColumn: '3 / span 1' }}>
-          Feed Lanes
-          <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
-            <option value={2}>2</option>
-            <option value={4}>4</option>
-          </select>
-        </label>
-        <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
+  <label style={{ gridColumn: '2 / span 1' }}>
+    % that eat at once
+    <input
+      type="number"
+      min={0}
+      max={100}
+      value={pctEat}
+      onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
+    />
+  </label>
 
-        {/* Row 2 (exact placement) */}
-        <label style={{ gridColumn: '1 / span 1', maxWidth: 240 }}>
-          Cow Weight Range
-          <select
-            value={cowClass}
-            onChange={e => setCowClass(e.target.value)}
-            style={{ width: 220 }}            // narrower select per request
-          >
-            {CLASS_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
-        </label>
+  <label style={{ gridColumn: '3 / span 1' }}>
+    Feed Lanes
+    <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
+      <option value={2}>2</option>
+      <option value={4}>4</option>
+    </select>
+  </label>
 
-        <div style={{ gridColumn: '2 / span 1' }} aria-hidden />
+  <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
 
-        <label style={{ gridColumn: '3 / span 1' }}>
-          Turning Circle Allowance (m)
-          <input
-            type="number"
-            min={19}
-            step={1}
-            value={turning}
-            onChange={e => setTurning(Number(e.target.value))}
-            onBlur={e => { const v = Number(e.currentTarget.value); if (!Number.isNaN(v) && v < 19) setTurning(19); }}
-          />
-        </label>
+  {/* Row 2 — Cow Weight Range spans two columns */}
+  <label style={{ gridColumn: '1 / span 2', maxWidth: 420 }}>
+    Cow Weight Range
+    <select
+      value={cowClass}
+      onChange={e => setCowClass(e.target.value)}
+      style={{ width: '100%' }}
+    >
+      {CLASS_LABELS.map(l => (
+        <option key={l} value={l}>{l}</option>
+      ))}
+    </select>
+  </label>
 
-        <label style={{ gridColumn: '4 / span 1' }}>
-          Entrance Allowance (m)
-          <input
-            type="number"
-            step={1}
-            value={entrance}
-            onChange={e => setEntrance(Number(e.target.value))}
-          />
-        </label>
-      </div>
+  <label style={{ gridColumn: '3 / span 1' }}>
+    Turning Circle Allowance (m)
+    <input
+      type="number"
+      min={19}
+      step={1}
+      value={turning}
+      onChange={e => setTurning(Number(e.target.value))}
+      onBlur={e => { const v = Number(e.currentTarget.value); if (!Number.isNaN(v) && v < 19) setTurning(19); }}
+    />
+  </label>
+
+  <label style={{ gridColumn: '4 / span 1' }}>
+    Entrance Allowance (m)
+    <input
+      type="number"
+      step={1}
+      value={entrance}
+      onChange={e => setEntrance(Number(e.target.value))}
+    />
+  </label>
+      
+</div>
 
       {/* Outputs */}
       <div style={{ marginTop: 16 }}>
