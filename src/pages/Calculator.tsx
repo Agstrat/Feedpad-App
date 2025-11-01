@@ -164,101 +164,112 @@ export default function Calculator() {
   }, [search, out]);
 
   if (!defs || !out) {
-    return <div className="card out"><h2 className="v">Calculator</h2><p>Loading…</p></div>;
+    return (
+      <div className="card">
+        <h2 className="v">Feedpad Calculator</h2>
+        <p>Loading…</p>
+      </div>
+    );
   }
 
   return (
-    <div className="card out" id="calculator-root">
-      <h2 className="v">Calculator</h2>
+    <div className="card" id="calculator-root">
+      <h2 className="v">Feedpad Calculator</h2>
 
-      {/* ===== Inputs (4-col grid; row 2 has Cow Range spanning 2 cols) ===== */}
-      <div className="form-grid">
-        {/* Row 1 */}
-        <label style={{ gridColumn: '1 / span 1' }}>
-          Total Cows
-          <input
-            type="number"
-            value={totalCows}
-            onChange={e => setTotalCows(Number(e.target.value))}
-          />
-        </label>
+      {/* Two-column layout: LEFT = actions, RIGHT = inputs + outputs */}
+      <div className="out">
+        {/* LEFT COLUMN — actions */}
+        <div className="actions" style={{ flexDirection: 'column' }}>
+          <button className="btn btn-sm" onClick={exportPDF}>Save Calculations (PDF)</button>
+          <button className="btn btn-sm ghost" onClick={() => nav('/')}>Save & Return to Home</button>
+        </div>
 
-        <label style={{ gridColumn: '2 / span 1' }}>
-          % that eat at once
-          <input
-            type="number"
-            min={0}
-            max={100}
-            value={pctEat}
-            onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
-          />
-        </label>
+        {/* RIGHT COLUMN — inputs (top) + outputs (below) */}
+        <div>
+          {/* Inputs */}
+          <div className="form-grid">
+            {/* Row 1 */}
+            <label style={{ gridColumn: '1 / span 1' }}>
+              Total Cows
+              <input
+                type="number"
+                value={totalCows}
+                onChange={e => setTotalCows(Number(e.target.value))}
+              />
+            </label>
 
-        <label style={{ gridColumn: '3 / span 1' }}>
-          Feed Lanes
-          <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
-            <option value={2}>2</option>
-            <option value={4}>4</option>
-          </select>
-        </label>
+            <label style={{ gridColumn: '2 / span 1' }}>
+              % that eat at once
+              <input
+                type="number"
+                min={0}
+                max={100}
+                value={pctEat}
+                onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
+              />
+            </label>
 
-        <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
+            <label style={{ gridColumn: '3 / span 1' }}>
+              Feed Lanes
+              <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
+                <option value={2}>2</option>
+                <option value={4}>4</option>
+              </select>
+            </label>
 
-        {/* Row 2 */}
-        <label style={{ gridColumn: '1 / span 2', maxWidth: 420 }}>
-          Cow Weight Range
-          <select
-            value={cowClass}
-            onChange={e => setCowClass(e.target.value)}
-            style={{ width: '100%' }}
-          >
-            {CLASS_LABELS.map(l => (
-              <option key={l} value={l}>{l}</option>
-            ))}
-          </select>
-        </label>
+            <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
 
-        <label style={{ gridColumn: '3 / span 1' }}>
-          Turning Circle Allowance (m)
-          <input
-            type="number"
-            min={19}
-            step={1}
-            value={turning}
-            onChange={e => setTurning(Number(e.target.value))}
-            onBlur={e => {
-              const v = Number(e.currentTarget.value);
-              if (!Number.isNaN(v) && v < 19) setTurning(19);
-            }}
-          />
-        </label>
+            {/* Row 2 */}
+            <label style={{ gridColumn: '1 / span 2', maxWidth: 420 }}>
+              Cow Weight Range
+              <select
+                value={cowClass}
+                onChange={e => setCowClass(e.target.value)}
+                style={{ width: '100%' }}
+              >
+                {CLASS_LABELS.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+              </select>
+            </label>
 
-        <label style={{ gridColumn: '4 / span 1' }}>
-          Entrance Allowance (m)
-          <input
-            type="number"
-            step={1}
-            value={entrance}
-            onChange={e => setEntrance(Number(e.target.value))}
-          />
-        </label>
-      </div>
+            <label style={{ gridColumn: '3 / span 1' }}>
+              Turning Circle Allowance (m)
+              <input
+                type="number"
+                min={19}
+                step={1}
+                value={turning}
+                onChange={e => setTurning(Number(e.target.value))}
+                onBlur={e => {
+                  const v = Number(e.currentTarget.value);
+                  if (!Number.isNaN(v) && v < 19) setTurning(19);
+                }}
+              />
+            </label>
 
-      {/* ===== Outputs (now directly under inputs) ===== */}
-      <div style={{ marginTop: 16 }}>
-        <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
-        <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
-        <div><strong>Cows per lane:</strong> {Math.round(out.op4.cowsPerLane)}</div>
-        <div><strong>Feed lane length (per lane):</strong> {out.op4.finalLen.toFixed(2)} m</div>
-        <div><strong>Overall feedpad length:</strong> {out.op6.toFixed(2)} m</div>
-        <div><strong>Crossover allowance:</strong> {out.inputs.crossOver ?? 0} m</div>
-        <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
-      </div>
+            <label style={{ gridColumn: '4 / span 1' }}>
+              Entrance Allowance (m)
+              <input
+                type="number"
+                step={1}
+                value={entrance}
+                onChange={e => setEntrance(Number(e.target.value))}
+              />
+            </label>
+          </div>
 
-      {/* ===== Actions (now at the very bottom; smaller buttons) ===== */}
-      <div className="actions">
-        <button className="btn btn-sm" onClick={exportPDF}>Save Calculations (PDF)</button>
-        <button className="btn btn-sm ghost" onClick={() => nav('/')}>Save & Return to Home</button>
+          {/* Outputs directly under inputs */}
+          <div style={{ marginTop: 16 }}>
+            <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
+            <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
+            <div><strong>Cows per lane:</strong> {Math.round(out.op4.cowsPerLane)}</div>
+            <div><strong>Feed lane length (per lane):</strong> {out.op4.finalLen.toFixed(2)} m</div>
+            <div><strong>Overall feedpad length:</strong> {out.op6.toFixed(2)} m</div>
+            <div><strong>Crossover allowance:</strong> {out.inputs.crossOver ?? 0} m</div>
+            <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
+          </div>
+        </div>
       </div>
     </div>
   );
