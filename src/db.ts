@@ -1,63 +1,78 @@
+// src/db.ts
 import Dexie, { Table } from 'dexie';
 
-export interface Settings {
-  id: number;               // always 1 (single row)
-  totalCows: number;
-  stockingPct: number;
-  feedLanes: number;
-  feedLaneWidth: number;
-  tractorLaneWidth: number;
-  cowLaneWidth: number;
-  entranceLen: number;
-  turnLen: number;
-  feedLanesLen: number;
-  slopePct: number;
-}
+export type Defaults = {
+  id: 'current';
+  totalCows: number;          // e.g. 100
+  stockingRatePct: number;    // 0–100
+  feedLanes: 1 | 2;           // lanes
+  bunkPerCow: number;         // m/cow (e.g. 0.67)
+  cowType: string;            // label only
 
-export interface Summary {
-  id?: number;
-  timestamp: string;
-  projectName?: string;
-  inputs: Record<string, number | string>;
-  outputs: Record<string, number | string>;
-  notes?: string;
-}
+  // Geometry / allowances
+  feedPadSlopePct: number;    // %
+  feedWallThickness: number;  // m
+  nibWallThickness: number;   // m
+  feedWallPostSpacing: number;// m
+  feedWallPostSize: string;   // e.g. "65NB"
+  cowLanePostSpacing: number; // m
+  cowLanePostSize: string;    // e.g. "50NB"
+  turningCircle: number;      // m
+  entranceAllowance: number;  // m
+  endPostOffset: number;      // m
+  stayPostOffset: number;     // m
+
+  // “Grey” baseline values (seeded defaults; may be recomputed downstream)
+  feedLaneWidth: number;      // m (grey)
+  tractorLaneWidth: number;   // m (grey)
+};
 
 class FPDB extends Dexie {
-  settings!: Table<Settings, number>;
-  summaries!: Table<Summary, number>;
+  defaults!: Table<Defaults, string>;
   constructor() {
-    super('feedpad-db');
+    super('FeedPadDB');
     this.version(1).stores({
-      settings: 'id',
-      summaries: '++id, timestamp'
+      defaults: 'id',
     });
   }
 }
 export const db = new FPDB();
 
-// helpers
-export async function loadSettings(): Promise<Settings> {
-  const cur = await db.settings.get(1);
-  if (cur) return cur;
-  const seed: Settings = {
-    id: 1,
-    totalCows: 100,
-    stockingPct: 100,
-    feedLanes: 2,
-    feedLaneWidth: 4.7,
-    tractorLaneWidth: 5.6,
-    cowLaneWidth: 4.7,
-    entranceLen: 10,
-    turnLen: 23,
-    feedLanesLen: 38.3,
-    slopePct: 1
-  };
-  await db.settings.put(seed);
-  return seed;
+export const DEFAULT_DEFAULTS: Defaults = {
+  id: 'current',
+  totalCows: 100,
+  stockingRatePct: 100,
+  feedLanes: 2,
+  bunkPerCow: 0.67,
+  cowType: 'HF 590 - 690kg',
+
+  feedPadSlopePct: 1,
+  feedWallThickness: 0.20,
+  nibWallThickness: 0.15,
+  feedWallPostSpacing: 3,
+  feedWallPostSize: '65NB',
+  cowLanePostSpacing: 2.5,
+  cowLanePostSize: '50NB',
+  turningCircle: 23,
+  entranceAllowance: 10,
+  endPostOffset: 0.15,
+  stayPostOffset: 1,
+
+  // seed example values as per your screenshot
+  feedLaneWidth: 4.7,
+  tractorLaneWidth: 5.6,
+};
+
+export async function loadDefaults(): Promise<Defaults> {
+  const row = await db.defaults.get('current');
+  if (row) return row;
+  await db.defaults.put(DEFAULT_DEFAULTS);
+  return DEFAULT_DEFAULTS;
 }
 
-export async function saveSettings(s: Partial<Settings>) {
-  const cur = await loadSettings();
-  await db.settings.put({ ...cur, ...s, id: 1 });
+export async function saveDefaults(next: Partial<Defaults>) {
+  const cur = await loadDefaults();
+  const merged = { ...cur, ...next, id: 'current' as const };
+  await db.defaults.put(merged);
+  return merged;
 }
