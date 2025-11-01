@@ -18,4 +18,4 @@ input, select { width:100%; padding:12px 10px; border-radius:10px; border:1px so
 .out { margin-top:18px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
 .k { color:#475467; font-size:12px; margin-bottom:6px; }
 .v { font-weight:800; font-size:22px; }
-.bg { position:fixed; inset:0; background:center/cover no-repeat url('/assets/logo.png'); opacity:.08; z-index:-1; }
+.bg { position:fixed; inset:0; background:center/cover no-repeat url('assets/logo.png'); opacity:.08; z-index:-1; }
