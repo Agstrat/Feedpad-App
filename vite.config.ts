@@ -1,19 +1,25 @@
-// vite.config.ts
+// vite.config.ts (FULL REPLACEMENT)
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Injected by your GH Actions workflow (e.g. "/<repo>/"); fallback to "/"
+// Injected by GH Actions (e.g. "/<repo>/")
 const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
-  base, // ensures all built asset URLs are prefixed for GitHub Pages
+  base,
   plugins: [
     react(),
     VitePWA({
-      base,                    // make the SW/manifest respect the Pages base
+      // --- One-time SW kill to fix blank screen from stale cache ---
+      selfDestroying: true,                // unregister old SW on clients
       registerType: 'autoUpdate',
-      workbox: { clientsClaim: true, skipWaiting: true },
+      workbox: {
+        clientsClaim: true,
+        skipWaiting: true,
+        cleanupOutdatedCaches: true,       // remove old caches
+      },
+      base,                                // ensure SW paths respect GH Pages base
       includeAssets: ['assets/logo.png'],
       manifest: {
         name: 'FeedPad',
@@ -22,8 +28,7 @@ export default defineConfig({
         theme_color: '#0f62fe',
         background_color: '#ffffff',
         display: 'standalone',
-        // Explicitly scope PWA to the repo path on Pages
-        start_url: base,
+        start_url: base,                   // PWA scoped to repo path
         scope: base,
         icons: [
           { src: 'assets/logo.png', sizes: '192x192', type: 'image/png' },
