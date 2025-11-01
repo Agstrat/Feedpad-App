@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// GitHub Pages base path injected by workflow
 const base = process.env.VITE_BASE ?? '/';
 
 export default defineConfig({
@@ -9,9 +10,10 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
+      // Always fetch and install the newest version
       registerType: 'autoUpdate',
-      // These two lines make new versions activate immediately:
       workbox: {
+        // Make the new SW take control immediately (prevents “stuck on old version”)
         clientsClaim: true,
         skipWaiting: true,
       },
