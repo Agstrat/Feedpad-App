@@ -1,8 +1,9 @@
 // src/pages/Calculator.tsx
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
+import { exportToPdf } from '../lib/export';
 
 /* Cow class → bunk allowance (m/cow) — UNCHANGED LIST */
 const CLASSES = [
@@ -59,6 +60,7 @@ function excel_OP6_overallLen(op4: number, turning: number, entrance: number) {
 
 export default function Calculator() {
   const nav = useNavigate();
+  const { search } = useLocation();
   const [defs, setDefs] = useState<Defaults | null>(null);
 
   // inputs
@@ -97,7 +99,7 @@ export default function Calculator() {
       postSpace: defs.feedWallPostSpacing ?? 3,
       endOff: defs.endPostOffset ?? 0.15,
       stayOff: defs.stayPostOffset ?? 1,
-      crossOver: defs.crossOverWidth ?? 0,          // crossover now displayed below
+      crossOver: defs.crossOverWidth ?? 0,
       slopePct: defs.feedPadSlopePct ?? 1,
     };
 
@@ -122,7 +124,7 @@ export default function Calculator() {
     });
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
-  // jsPDF export (unchanged logic)
+  // jsPDF export (unchanged)
   function exportPDF() {
     if (!defs || !out) return;
     const doc = new jsPDF();
@@ -157,12 +159,15 @@ export default function Calculator() {
     doc.save('feedpad-calculation.pdf');
   }
 
-  // Listen for global "create-pdf" so Home can trigger this
+  // Support /calculator?pdf=1 → auto-export after render
   useEffect(() => {
-    function onCreatePdf() { exportPDF(); }
-    window.addEventListener('create-pdf' as any, onCreatePdf);
-    return () => window.removeEventListener('create-pdf' as any, onCreatePdf);
-  }, [defs, out, totalCows, pctEat, lanes, cowClass, turning, entrance]);
+    if (!out) return;
+    const params = new URLSearchParams(search);
+    if (params.get('pdf') === '1') {
+      // Give the UI a tick to paint, then export (uses your jsPDF logic above)
+      setTimeout(() => exportPDF(), 50);
+    }
+  }, [search, out]); // run when ready
 
   if (!defs || !out) {
     return <div className="card out"><h2 className="v">Calculator</h2><p>Loading…</p></div>;
@@ -172,7 +177,7 @@ export default function Calculator() {
     <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
-      {/* ===== Inputs in a strict 4-column grid ===== */}
+      {/* ===== Inputs in a strict 4-column grid (no overlap) ===== */}
       <div
         style={{
           display: 'grid',
@@ -203,7 +208,7 @@ export default function Calculator() {
 
         <div style={{ gridColumn: '4 / span 1' }} aria-hidden /> {/* spacer */}
 
-        {/* Row 2 — exact placement request */}
+        {/* Row 2 — exact placement */}
         <label style={{ gridColumn: '1 / span 1', minWidth: 180 }}>
           Cow Weight Range
           <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
@@ -211,14 +216,14 @@ export default function Calculator() {
           </select>
         </label>
 
-        <div style={{ gridColumn: '2 / span 1' }} aria-hidden /> {/* intentional spacer */}
+        <div style={{ gridColumn: '2 / span 1' }} aria-hidden /> {/* spacer */}
 
         <label style={{ gridColumn: '3 / span 1' }}>
           Turning Circle Allowance (m)
           <input
             type="number"
             min={19}
-            step={1}                   // step fixed to 1
+            step={1}
             value={turning}
             onChange={e => setTurning(Number(e.target.value))}
             onBlur={e => { const v = Number(e.currentTarget.value); if (!Number.isNaN(v) && v < 19) setTurning(19); }}
@@ -239,11 +244,11 @@ export default function Calculator() {
         <div><strong>Cows per lane:</strong> {Math.round(out.op4.cowsPerLane)}</div>
         <div><strong>Feed lane length (per lane):</strong> {out.op4.finalLen.toFixed(2)} m</div>
         <div><strong>Overall feedpad length:</strong> {out.op6.toFixed(2)} m</div>
-        <div><strong>Crossover allowance:</strong> {defs.crossOverWidth ?? 0} m</div>
+        <div><strong>Crossover allowance:</strong> {out.inputs.crossOver ?? 0} m</div>
         <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
       </div>
 
-      {/* ===== Actions (button size controlled by your CSS .btn/.ghost) ===== */}
+      {/* ===== Actions ===== */}
       <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
         <button className="btn" onClick={exportPDF}>Save Calculations (PDF)</button>
         <button className="btn ghost" onClick={() => nav('/')}>Save & Return to Home</button>
