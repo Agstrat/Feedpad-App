@@ -1,20 +1,12 @@
-// src/pages/Defaults.tsx
 import React, { useEffect, useState } from 'react';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
-import { deriveFromDefaults } from '../lib/calc';
-import { Link } from 'react-router-dom';
 
 export default function DefaultsPage() {
   const [form, setForm] = useState<Defaults | null>(null);
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    (async () => setForm(await loadDefaults()))();
-  }, []);
-
+  useEffect(() => { (async () => setForm(await loadDefaults()))(); }, []);
   if (!form) return <div className="card out"><p>Loading…</p></div>;
-
-  const d = deriveFromDefaults(form);
 
   function set<K extends keyof Defaults>(key: K, val: Defaults[K]) {
     setForm(prev => (prev ? { ...prev, [key]: val } : prev));
@@ -25,32 +17,17 @@ export default function DefaultsPage() {
     try {
       const saved = await saveDefaults(form!);
       setForm(saved);
-    } finally {
-      setSaving(false);
-    }
+    } finally { setSaving(false); }
   }
 
   return (
     <div className="card out">
       <h2 className="v">Default Settings</h2>
 
-      {/* Basic */}
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-        <label> Total Cows
-          <input type="number" value={form.totalCows}
-            onChange={e => set('totalCows', Number(e.target.value))} />
-        </label>
-
-        <label> Stocking Rate %
-          <input type="number" value={form.stockingRatePct}
-            onChange={e => set('stockingRatePct', Number(e.target.value))} />
-        </label>
-
         <label> Feed Lanes
-          <select value={form.feedLanes}
-            onChange={e => set('feedLanes', Number(e.target.value) as 1 | 2)}>
-            <option value={1}>1</option>
-            <option value={2}>2</option>
+          <select value={form.feedLanes} onChange={e => set('feedLanes', Number(e.target.value) as 1 | 2)}>
+            <option value={1}>1</option><option value={2}>2</option>
           </select>
         </label>
 
@@ -64,100 +41,58 @@ export default function DefaultsPage() {
 
         <label> Feed Bunk per Cow (m)
           <input type="number" step="0.01" value={form.bunkPerCow}
-            onChange={e => set('bunkPerCow', Number(e.target.value))} />
+                 onChange={e => set('bunkPerCow', Number(e.target.value))}/>
         </label>
 
         <label> Feed Pad Slope (%)
           <input type="number" step="0.1" value={form.feedPadSlopePct}
-            onChange={e => set('feedPadSlopePct', Number(e.target.value))} />
+                 onChange={e => set('feedPadSlopePct', Number(e.target.value))}/>
         </label>
       </section>
 
-      {/* Structure / allowances */}
       <h3 style={{ marginTop: 16 }}>Structure &amp; Allowances</h3>
       <section style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: 12 }}>
         <label> Feed Wall Thickness (m)
           <input type="number" step="0.01" value={form.feedWallThickness}
-            onChange={e => set('feedWallThickness', Number(e.target.value))} />
+                 onChange={e => set('feedWallThickness', Number(e.target.value))}/>
         </label>
-
         <label> Nib Wall Thickness (m)
           <input type="number" step="0.01" value={form.nibWallThickness}
-            onChange={e => set('nibWallThickness', Number(e.target.value))} />
+                 onChange={e => set('nibWallThickness', Number(e.target.value))}/>
         </label>
-
         <label> Feed Wall Post Spacing (m)
           <input type="number" step="0.1" value={form.feedWallPostSpacing}
-            onChange={e => set('feedWallPostSpacing', Number(e.target.value))} />
+                 onChange={e => set('feedWallPostSpacing', Number(e.target.value))}/>
         </label>
-
         <label> Feed Wall Post Size
-          <select value={form.feedWallPostSize}
-            onChange={e => set('feedWallPostSize', e.target.value)}>
+          <select value={form.feedWallPostSize} onChange={e => set('feedWallPostSize', e.target.value)}>
             <option>40NB</option><option>50NB</option><option>65NB</option><option>80NB</option>
           </select>
         </label>
-
         <label> Cow Lane Post Spacing (m)
           <input type="number" step="0.1" value={form.cowLanePostSpacing}
-            onChange={e => set('cowLanePostSpacing', Number(e.target.value))} />
+                 onChange={e => set('cowLanePostSpacing', Number(e.target.value))}/>
         </label>
-
         <label> Cow Lane Post Size
-          <select value={form.cowLanePostSize}
-            onChange={e => set('cowLanePostSize', e.target.value)}>
+          <select value={form.cowLanePostSize} onChange={e => set('cowLanePostSize', e.target.value)}>
             <option>40NB</option><option>50NB</option><option>65NB</option><option>80NB</option>
           </select>
         </label>
-
         <label> Turning Circle Allowance (m)
           <input type="number" step="0.1" value={form.turningCircle}
-            onChange={e => set('turningCircle', Number(e.target.value))} />
+                 onChange={e => set('turningCircle', Number(e.target.value))}/>
         </label>
-
         <label> Entrance Allowance (m)
           <input type="number" step="0.1" value={form.entranceAllowance}
-            onChange={e => set('entranceAllowance', Number(e.target.value))} />
+                 onChange={e => set('entranceAllowance', Number(e.target.value))}/>
         </label>
-
         <label> End Post Offset (m)
           <input type="number" step="0.01" value={form.endPostOffset}
-            onChange={e => set('endPostOffset', Number(e.target.value))} />
+                 onChange={e => set('endPostOffset', Number(e.target.value))}/>
         </label>
-
         <label> Stay Post Offset (m)
           <input type="number" step="0.01" value={form.stayPostOffset}
-            onChange={e => set('stayPostOffset', Number(e.target.value))} />
-        </label>
-      </section>
-
-      {/* Grey (derived) preview */}
-      <h3 style={{ marginTop: 16 }}>Derived (grey) values</h3>
-      <section style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-        <label> Total cows that can eat at once
-          <input readOnly value={d.cowsCanEatAtOnce} />
-        </label>
-
-        <label> Cows per lane
-          <input readOnly value={d.cowsPerLane.toFixed(0)} />
-        </label>
-
-        <label> Bunk length per lane (m)
-          <input readOnly value={d.bunkLenPerLane.toFixed(2)} />
-        </label>
-
-        <label> Total bunk length (all lanes) (m)
-          <input readOnly value={d.totalBunkLenAllLanes.toFixed(2)} />
-        </label>
-
-        <label> Feed Lane Width (m)
-          <input type="number" step="0.1" value={form.feedLaneWidth}
-            onChange={e => set('feedLaneWidth', Number(e.target.value))} />
-        </label>
-
-        <label> Tractor Lane Width (m)
-          <input type="number" step="0.1" value={form.tractorLaneWidth}
-            onChange={e => set('tractorLaneWidth', Number(e.target.value))} />
+                 onChange={e => set('stayPostOffset', Number(e.target.value))}/>
         </label>
       </section>
 
@@ -165,7 +100,6 @@ export default function DefaultsPage() {
         <button className="btn" onClick={onSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save Defaults'}
         </button>
-        <Link className="btn" to="/calculator">Go to Calculator</Link>
       </div>
     </div>
   );
