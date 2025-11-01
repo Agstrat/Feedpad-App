@@ -8,11 +8,18 @@ import Start from './pages/Start';
 import Defaults from './pages/Defaults';
 import Calculator from './pages/Calculator';
 
-const router = createBrowserRouter([
-  { path: '/', element: <Start /> },
-  { path: '/defaults', element: <Defaults /> },
-  { path: '/calculator', element: <Calculator /> },
-]);
+// Vite exposes the correct base at build: '/Feedpad-App/'
+// Normalize to no trailing slash for React Router
+const basename = import.meta.env.BASE_URL.replace(/\/+$/, '');
+
+const router = createBrowserRouter(
+  [
+    { path: '/', element: <Start /> },
+    { path: '/defaults', element: <Defaults /> },
+    { path: '/calculator', element: <Calculator /> },
+  ],
+  { basename }
+);
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
