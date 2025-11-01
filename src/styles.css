@@ -54,3 +54,9 @@ input, select { width:100%; padding:12px 10px; border-radius:10px; border:1px so
   line-height:1;
   border-radius:12px;
 }
+/* Smaller button variant for Calculator only */
+.btn-sm{
+  padding:10px 14px;   /* smaller than default 14px 18px */
+  font-size:14px;
+  border-radius:10px;
+}
