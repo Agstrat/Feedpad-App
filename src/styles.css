@@ -19,3 +19,38 @@ input, select { width:100%; padding:12px 10px; border-radius:10px; border:1px so
 .k { color:#475467; font-size:12px; margin-bottom:6px; }
 .v { font-weight:800; font-size:22px; }
 .bg { position:fixed; inset:0; background:center/cover no-repeat url('assets/logo.png'); opacity:.08; z-index:-1; }
+/* Calculator layout helpers — tiny, non-invasive */
+.form-grid{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:12px;
+  align-items:end; /* align bottoms of inputs */
+}
+.form-grid label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  font-size:12px;
+  color:#6b7280; /* subtle grey like screenshot */
+}
+.form-grid input,
+.form-grid select{
+  height:36px;
+  border:1px solid #d1d5db;
+  border-radius:8px;
+  padding:0 10px;
+  font-size:16px;
+}
+
+/* Button row to match Home sizing exactly */
+.actions{
+  display:flex;
+  gap:12px;
+  margin-top:18px;
+}
+.actions .btn{
+  padding:10px 16px;      /* same feel as Home */
+  font-size:14px;
+  line-height:1;
+  border-radius:12px;
+}
