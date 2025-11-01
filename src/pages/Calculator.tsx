@@ -3,9 +3,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { jsPDF } from 'jspdf';
 import { loadDefaults, saveDefaults, type Defaults } from '../db';
-import { exportToPdf } from '../lib/export';
 
-/* Cow class → bunk allowance (m/cow) — UNCHANGED LIST */
+/* Cow class → bunk allowance (m/cow) — unchanged list */
 const CLASSES = [
   ['HF < 60kg',        0.30],
   ['HF 60 - 100kg',    0.36],
@@ -38,17 +37,15 @@ type CalcInputs = {
 
 function excel_OP4_lenFeedLanes(i: CalcInputs) {
   const cowsEating = i.totalCows * (i.pctEat / 100);
-  const perRowFactor = i.lanes === 4 ? 0.25 : 0.5;     // 4 lanes => 4 faces, 2 lanes => 2 faces
+  const perRowFactor = i.lanes === 4 ? 0.25 : 0.5;
   const cowAllow = bunkFor(i.cowClass);
 
   const rawLen = cowsEating * perRowFactor * cowAllow;
-
   const bayCount = i.postSpace > 0 ? Math.ceil(rawLen / i.postSpace) : 0;
   const feedLen = bayCount * i.postSpace;
 
   const baseLen = feedLen + 2 * (i.endOff + i.stayOff);
   const finalLen = baseLen + (i.crossOver || 0);
-
   const cowsPerLane = cowsEating / i.lanes;
 
   return { rawLen, feedLen, finalLen, cowAllow, cowsEating, cowsPerLane };
@@ -71,7 +68,6 @@ export default function Calculator() {
   const [turning, setTurning] = useState(23);
   const [entrance, setEntrance] = useState(10);
 
-  // load defaults
   useEffect(() => {
     (async () => {
       const d = await loadDefaults();
@@ -85,7 +81,6 @@ export default function Calculator() {
     })();
   }, []);
 
-  // calculate
   const out = useMemo(() => {
     if (!defs) return null;
 
@@ -110,7 +105,6 @@ export default function Calculator() {
     return { inputs, op4, op6, rise };
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
-  // remember last used
   useEffect(() => {
     if (!defs) return;
     void saveDefaults({
@@ -124,14 +118,11 @@ export default function Calculator() {
     });
   }, [defs, totalCows, pctEat, lanes, cowClass, turning, entrance]);
 
-  // jsPDF export (unchanged)
   function exportPDF() {
     if (!defs || !out) return;
     const doc = new jsPDF();
-
     doc.setFontSize(14);
     doc.text('FeedPad – Calculation Summary', 14, 16);
-
     doc.setFontSize(10);
     const y = (row: number) => 26 + row * 6;
 
@@ -149,25 +140,20 @@ export default function Calculator() {
     doc.text(`Crossover: ${defs.crossOverWidth ?? 0} m`, 110, y(4));
     doc.text(`Slope: ${defs.feedPadSlopePct}%`, 110, y(5));
 
-    doc.line(14, y(6)-3, 196, y(6)-3);
-
+    doc.line(14, y(6) - 3, 196, y(6) - 3);
     doc.text(`Cows eating now: ${Math.round(out.op4.cowsEating)}`, 14, y(6));
     doc.text(`Feed lane length (per lane): ${out.op4.finalLen.toFixed(2)} m`, 14, y(7));
     doc.text(`Overall feedpad length: ${out.op6.toFixed(2)} m`, 14, y(8));
     doc.text(`Elevation rise @ ${out.inputs.slopePct}%: ${out.rise.toFixed(2)} m`, 14, y(9));
-
     doc.save('feedpad-calculation.pdf');
   }
 
-  // Support /calculator?pdf=1 → auto-export after render
+  // Support /calculator?pdf=1 → auto-export
   useEffect(() => {
     if (!out) return;
     const params = new URLSearchParams(search);
-    if (params.get('pdf') === '1') {
-      // Give the UI a tick to paint, then export (uses your jsPDF logic above)
-      setTimeout(() => exportPDF(), 50);
-    }
-  }, [search, out]); // run when ready
+    if (params.get('pdf') === '1') setTimeout(() => exportPDF(), 50);
+  }, [search, out]);
 
   if (!defs || !out) {
     return <div className="card out"><h2 className="v">Calculator</h2><p>Loading…</p></div>;
@@ -177,27 +163,27 @@ export default function Calculator() {
     <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
-      {/* ===== Inputs in a strict 4-column grid (no overlap) ===== */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(4, minmax(0,1fr))',
-          gap: 12,
-        }}
-      >
+      {/* STRICT 4-COL GRID; aligned bottoms; no overlap */}
+      <div className="form-grid">
         {/* Row 1 */}
         <label style={{ gridColumn: '1 / span 1' }}>
           Total Cows
-          <input type="number" value={totalCows}
-                 onChange={e => setTotalCows(Number(e.target.value))}/>
+          <input
+            type="number"
+            value={totalCows}
+            onChange={e => setTotalCows(Number(e.target.value))}
+          />
         </label>
-
         <label style={{ gridColumn: '2 / span 1' }}>
           % that eat at once
-          <input type="number" min={0} max={100} value={pctEat}
-                 onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}/>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={pctEat}
+            onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}
+          />
         </label>
-
         <label style={{ gridColumn: '3 / span 1' }}>
           Feed Lanes
           <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 2 | 4)}>
@@ -205,18 +191,21 @@ export default function Calculator() {
             <option value={4}>4</option>
           </select>
         </label>
+        <div style={{ gridColumn: '4 / span 1' }} aria-hidden />
 
-        <div style={{ gridColumn: '4 / span 1' }} aria-hidden /> {/* spacer */}
-
-        {/* Row 2 — exact placement */}
-        <label style={{ gridColumn: '1 / span 1', minWidth: 180 }}>
+        {/* Row 2 (exact placement) */}
+        <label style={{ gridColumn: '1 / span 1', maxWidth: 240 }}>
           Cow Weight Range
-          <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
+          <select
+            value={cowClass}
+            onChange={e => setCowClass(e.target.value)}
+            style={{ width: 220 }}            // narrower select per request
+          >
             {CLASS_LABELS.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </label>
 
-        <div style={{ gridColumn: '2 / span 1' }} aria-hidden /> {/* spacer */}
+        <div style={{ gridColumn: '2 / span 1' }} aria-hidden />
 
         <label style={{ gridColumn: '3 / span 1' }}>
           Turning Circle Allowance (m)
@@ -232,12 +221,16 @@ export default function Calculator() {
 
         <label style={{ gridColumn: '4 / span 1' }}>
           Entrance Allowance (m)
-          <input type="number" step={1} value={entrance}
-                 onChange={e => setEntrance(Number(e.target.value))}/>
+          <input
+            type="number"
+            step={1}
+            value={entrance}
+            onChange={e => setEntrance(Number(e.target.value))}
+          />
         </label>
       </div>
 
-      {/* ===== Outputs ===== */}
+      {/* Outputs */}
       <div style={{ marginTop: 16 }}>
         <div><strong>Bunk allowance (m/cow):</strong> {out.op4.cowAllow.toFixed(2)}</div>
         <div><strong>Cows eating now:</strong> {Math.round(out.op4.cowsEating)}</div>
@@ -248,8 +241,8 @@ export default function Calculator() {
         <div><strong>Elevation rise @ {out.inputs.slopePct}%:</strong> {out.rise.toFixed(2)} m</div>
       </div>
 
-      {/* ===== Actions ===== */}
-      <div style={{ display: 'flex', gap: 12, marginTop: 18 }}>
+      {/* Actions — same visual size as Home */}
+      <div className="actions">
         <button className="btn" onClick={exportPDF}>Save Calculations (PDF)</button>
         <button className="btn ghost" onClick={() => nav('/')}>Save & Return to Home</button>
       </div>
