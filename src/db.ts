@@ -1,50 +1,44 @@
-import Dexie, { Table } from 'dexie';
+// src/db.ts
+// Simple localStorage-backed defaults store used across the app.
 
 export type Defaults = {
-  id?: string;                 // 'app'
-  // “Home” / session values
+  // Calculation/usage-oriented fields
   totalCows?: number;
-  stockingRatePct?: number;
+  stockingRatePct?: number;   // %
   feedLanes?: 2 | 4;
   cowType?: string;
 
-  // Structure & allowances
-  feedPadSlopePct?: number;
-  feedWallThickness?: number;
-  nibWallThickness?: number;
-  feedWallPostSpacing?: number;
-  feedWallPostSize?: string;
-  cowLanePostSpacing?: number;
-  cowLanePostSize?: string;
-  turningCircle?: number;
-  entranceAllowance?: number;
+  // Geom & spec (existing)
+  feedPadSlopePct: number;    // D17
+  feedWallThickness: number;  // D3
+  nibWallThickness: number;   // D4
+  feedWallPostSpacing: number;// D7
+  feedWallPostSize?: string;  // D8 (e.g., '80NB','65NB','50NB','40NB')
+  cowLanePostSpacing: number; // D9
+  cowLanePostSize?: string;   // D10
+  turningCircle: number;      // D13
+  entranceAllowance: number;  // D14
+  crossOverWidth: number;     // D12
+  endPostOffset: number;      // D15
+  stayPostOffset: number;     // D16
 
-  endPostOffset?: number;
-  stayPostOffset?: number;
+  // NEW defaults (no inputs on Calculator page; read-only there)
+  feedLaneWidth: number;      // D1
+  tractorLaneWidth: number;   // D2
+  feedAboveCow: number;       // extra (height diff m)
 
-  // NEW
-  crossOverWidth?: number;
+  // Optional future fields can be appended without breaking
 };
 
-class AppDB extends Dexie {
-  defaults!: Table<Defaults, string>;
-  constructor() {
-    super('feedpad-db');
-    this.version(1).stores({
-      defaults: 'id'
-    });
-  }
-}
-
-const db = new AppDB();
-
-const DEFAULTS: Defaults = {
-  id: 'app',
-  totalCows: 500,
+// Sensible baseline defaults (match your screenshots + requests)
+const DEFAULTS_BASE: Defaults = {
+  // frequently edited on Calculator page but persisted here:
+  totalCows: 0,
   stockingRatePct: 100,
   feedLanes: 2,
   cowType: 'HF 590 - 690kg',
 
+  // defaults page values from your snapshot
   feedPadSlopePct: 1,
   feedWallThickness: 0.2,
   nibWallThickness: 0.15,
@@ -52,25 +46,45 @@ const DEFAULTS: Defaults = {
   feedWallPostSize: '65NB',
   cowLanePostSpacing: 2.5,
   cowLanePostSize: '50NB',
-  turningCircle: 23,
+  turningCircle: 20,
   entranceAllowance: 10,
+  crossOverWidth: 0,
   endPostOffset: 0.15,
   stayPostOffset: 1,
 
-  crossOverWidth: 0,
+  // NEW
+  feedLaneWidth: 4.7,
+  tractorLaneWidth: 6.0,
+  feedAboveCow: 0.150,
 };
 
+const KEY = 'feedpad-defaults:v1';
+
 export async function loadDefaults(): Promise<Defaults> {
-  const row = await db.defaults.get('app');
-  if (!row) {
-    await db.defaults.put(DEFAULTS);
-    return { ...DEFAULTS };
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return { ...DEFAULTS_BASE };
+    const parsed = JSON.parse(raw) as Partial<Defaults>;
+    // merge & coerce some types
+    const merged: Defaults = {
+      ...DEFAULTS_BASE,
+      ...parsed,
+    };
+    return merged;
+  } catch {
+    return { ...DEFAULTS_BASE };
   }
-  return { ...DEFAULTS, ...row }; // merge to ensure new fields exist
 }
 
-export async function saveDefaults(d: Defaults): Promise<void> {
-  await db.defaults.put({ ...DEFAULTS, ...d, id: 'app' });
+export async function saveDefaults(next: Defaults): Promise<void> {
+  const toSave: Defaults = {
+    ...DEFAULTS_BASE,
+    ...next,
+  };
+  localStorage.setItem(KEY, JSON.stringify(toSave));
 }
 
-export { db };
+// handy wipe for debugging
+export async function resetDefaults(): Promise<void> {
+  localStorage.removeItem(KEY);
+}
