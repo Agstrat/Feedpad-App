@@ -1,80 +1,146 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { loadDefaults, type Defaults, saveDefaults } from '../db';
+import { loadDefaults, saveDefaults, type Defaults } from '../db';
 
-// Simple derivation matching your screenshots
-function derive(cows: number, lanes: number, bunkPerCow: number) {
-  const canEat = Math.max(0, Math.round(cows));                 // “Total cows that can eat at once”
-  const perLane = lanes > 0 ? canEat / lanes : 0;               // cows per lane
-  const bunkPerLane = perLane * bunkPerCow;                     // m
-  return { canEat, perLane, bunkPerLane };
+/* ------- Cow weight → bunk allowance (m/cow) ------- */
+const BUNK_BY_CLASS: Record<string, number> = {
+  'HF 100 - 150kg': 0.30,
+  'HF 150 - 200kg': 0.36,
+  'HF 200 - 300kg': 0.41,
+  'HF 300 - 400kg': 0.51,
+  'JX 410 - 500kg': 0.56,
+  'HF 500 - 590kg': 0.61,
+  'HF 590 - 690kg': 0.67,
+  'HF 690 - 790kg': 0.72,
+  'Jersey 430 - 520kg': 0.56, // keep jersey line you used
+};
+
+const COW_CLASSES = Object.keys(BUNK_BY_CLASS);
+
+/* ------- Core derivations (can be swapped to your exact Excel logic) ------- */
+function derive(
+  totalCows: number,
+  pctEat: number,             // 0–100
+  lanes: number,              // 1 or 2
+  cowClass: string,           // maps to bunk allowance
+  turnAllowance: number,      // m
+  entranceAllowance: number,  // m
+  slopePct: number            // from defaults
+) {
+  const bunkPerCow = BUNK_BY_CLASS[cowClass] ?? 0.67;
+
+  const canEat = Math.max(0, Math.round((totalCows || 0) * (pctEat || 0) / 100));
+  const perLane = lanes > 0 ? canEat / lanes : 0;
+
+  // feed lane length (per lane) = cows per lane * bunk per cow
+  const feedLaneLen = perLane * bunkPerCow; // metres
+
+  // overall pad length (simple baseline from your earlier OP6 snapshot)
+  // OP6 earlier: totalLen = feedLaneLen + crossOver + turning + entrance
+  // (no explicit crossOver given here, so we use turning + entrance + feed lane)
+  const overallLen = turnAllowance + entranceAllowance + feedLaneLen;
+
+  // elevation rise across pad with given slope
+  const elevationRise = (slopePct / 100) * overallLen; // metres
+
+  return { bunkPerCow, canEat, perLane, feedLaneLen, overallLen, elevationRise };
 }
 
 export default function Calculator() {
-  // ---- Top-level hooks (order never changes) ----
   const [defs, setDefs] = useState<Defaults | null>(null);
-  const [cows, setCows] = useState<number>(0);
 
-  // Load defaults once, then seed cows from persisted lastCows or a safe fallback
+  // runtime inputs (Calculator owns these)
+  const [totalCows, setTotalCows] = useState<number>(0);
+  const [pctEat, setPctEat] = useState<number>(100);
+  const [lanes, setLanes] = useState<1 | 2>(2);
+  const [cowClass, setCowClass] = useState<string>('HF 590 - 690kg');
+  const [turnAllowance, setTurnAllowance] = useState<number>(23);
+  const [entranceAllowance, setEntranceAllowance] = useState<number>(10);
+
   useEffect(() => {
     (async () => {
       const d = await loadDefaults();
       setDefs(d);
-      setCows(d.totalCows ?? 0); // we still keep totalCows in DB for a seed; not shown on Defaults page
+      // seed runtime inputs from persisted defaults where sensible
+      setTotalCows(d.totalCows ?? 0);
+      setLanes(d.feedLanes);
+      setCowClass(d.cowType);
+      setTurnAllowance(d.turningCircle);
+      setEntranceAllowance(d.entranceAllowance);
+      setPctEat(d.stockingRatePct ?? 100);
     })();
   }, []);
 
-  // Compute greys whenever inputs change
-  const greys = useMemo(() => {
-    if (!defs) return { canEat: 0, perLane: 0, bunkPerLane: 0 };
-    return derive(cows, defs.feedLanes, defs.bunkPerCow);
-  }, [defs, cows]);
+  const out = useMemo(() => {
+    const slope = defs?.feedPadSlopePct ?? 1;
+    return derive(totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance, slope);
+  }, [defs, totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance]);
 
-  // Persist last used cows (optional, harmless)
+  // optionally persist last-used runtime values (safe, fire-and-forget)
   useEffect(() => {
     if (!defs) return;
-    const next = { ...defs, totalCows: cows as number };
-    // fire-and-forget; ignore result to avoid re-render loop
-    saveDefaults(next).then(() => { /* noop */ });
-  }, [cows, defs]);
+    void saveDefaults({
+      ...defs,
+      totalCows,
+      stockingRatePct: pctEat,
+      feedLanes: lanes,
+      cowType: cowClass,
+      turningCircle: turnAllowance,
+      entranceAllowance,
+    });
+  }, [defs, totalCows, pctEat, lanes, cowClass, turnAllowance, entranceAllowance]);
 
-  // ---- Render (no conditional hooks above this line) ----
   return (
-    <div id="calculator-root" className="card out">
+    <div className="card out" id="calculator-root">
       <h2 className="v">Calculator</h2>
 
       {!defs ? (
         <p>Loading…</p>
       ) : (
         <>
+          {/* Inputs */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: 12 }}>
-            <label>
-              Total cows
-              <input
-                type="number"
-                value={cows}
-                onChange={(e) => setCows(Number(e.target.value))}
-              />
+            <label> Total Cows
+              <input type="number" value={totalCows}
+                     onChange={e => setTotalCows(Number(e.target.value))}/>
             </label>
 
-            <label>
-              Can eat at once
-              <input readOnly value={greys.canEat} />
+            <label> % that eat at once
+              <input type="number" min={0} max={100} value={pctEat}
+                     onChange={e => setPctEat(Math.max(0, Math.min(100, Number(e.target.value))))}/>
             </label>
 
-            <label>
-              Cows per lane
-              <input readOnly value={Number.isFinite(greys.perLane) ? Math.round(greys.perLane) : 0} />
+            <label> Feed Lanes
+              <select value={lanes} onChange={e => setLanes(Number(e.target.value) as 1 | 2)}>
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+              </select>
             </label>
 
-            <label>
-              Bunk length per lane (m)
-              <input readOnly value={greys.bunkPerLane.toFixed(2)} />
+            <label> Cow Weight Range
+              <select value={cowClass} onChange={e => setCowClass(e.target.value)}>
+                {COW_CLASSES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </label>
+
+            <label> Turning Circle Allowance (m)
+              <input type="number" step="0.1" value={turnAllowance}
+                     onChange={e => setTurnAllowance(Number(e.target.value))}/>
+            </label>
+
+            <label> Entrance Allowance (m)
+              <input type="number" step="0.1" value={entranceAllowance}
+                     onChange={e => setEntranceAllowance(Number(e.target.value))}/>
             </label>
           </div>
 
-          <div style={{ marginTop: 12 }}>
-            <div><strong>Lanes:</strong> {defs.feedLanes}</div>
-            <div><strong>Bunk per cow (m):</strong> {defs.bunkPerCow}</div>
+          {/* Outputs */}
+          <div style={{ marginTop: 16 }}>
+            <div><strong>Bunk allowance (m/cow):</strong> {out.bunkPerCow.toFixed(2)}</div>
+            <div><strong>How many eat at once:</strong> {out.canEat}</div>
+            <div><strong>Cows per lane:</strong> {Number.isFinite(out.perLane) ? Math.round(out.perLane) : 0}</div>
+            <div><strong>Feed lane length (per lane):</strong> {out.feedLaneLen.toFixed(2)} m</div>
+            <div><strong>Overall feedpad length (baseline):</strong> {out.overallLen.toFixed(2)} m</div>
+            <div><strong>Elevation rise @ {defs.feedPadSlopePct}%:</strong> {out.elevationRise.toFixed(3)} m</div>
           </div>
         </>
       )}
