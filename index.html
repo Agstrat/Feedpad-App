@@ -1,52 +1,14 @@
-<!doctype html> 
+<!doctype html>
 <html lang="en">
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<link rel="manifest" href="manifest.webmanifest" />
-<meta name="theme-color" content="#512da8" />
-<title>FeedPad Calculator</title>
-<body style="font-family:system-ui;margin:0;background:#fafafa">
-  <header style="background:#673ab7;color:#fff;padding:12px 16px;text-align:center">
-    <h2 style="margin:0">FeedPad Calculator</h2>
-  </header>
-
-  <main style="padding:16px">
-    <label>Cows</label>
-    <input id="cows" type="number" placeholder="Number of cows" style="width:100%;padding:8px;margin:6px 0"><br>
-
-    <label>Feedpad Length (m)</label>
-    <input id="length" type="number" placeholder="Length" style="width:100%;padding:8px;margin:6px 0"><br>
-
-    <label>Feedpad Width (m)</label>
-    <input id="width" type="number" placeholder="Width" style="width:100%;padding:8px;margin:6px 0"><br>
-
-    <button onclick="calc()" style="width:100%;padding:12px;background:#673ab7;color:#fff;border:none;border-radius:6px;font-size:16px;margin-top:10px">
-      Calculate
-    </button>
-
-    <h3 id="result" style="margin-top:20px;color:#333"></h3>
-  </main>
-
-  <script>
-    function calc() {
-      const cows = +document.getElementById("cows").value;
-      const length = +document.getElementById("length").value;
-      const width = +document.getElementById("width").value;
-
-      if (!cows || !length || !width) {
-        document.getElementById("result").innerText = "Please enter all values.";
-        return;
-      }
-
-      const area = length * width;
-      const spacePerCow = area / cows;
-      document.getElementById("result").innerText =
-        `Feedpad Area: ${area.toFixed(1)} m²\nArea per Cow: ${spacePerCow.toFixed(2)} m²/cow`;
-    }
-
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js"));
-    }
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0f62fe" />
+    <link rel="icon" href="/favicon.ico" />
+    <title>FeedPad</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
 </html>
