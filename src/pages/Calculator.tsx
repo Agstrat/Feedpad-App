@@ -1,8 +1,9 @@
+// src/pages/Calculator.tsx — FULL DROP-IN (fixes slope key -> feedPadSlopePct)
 import React, { useMemo, useState } from 'react'
 
 /** Weight options -> bunk allowance (m/cow) */
 const COW_CLASSES = [
-  { id: 'HF60_100', label: 'HF 60 – 100kg',  bunkM: 0.36 },
+  { id: 'HF60_100',  label: 'HF 60 – 100kg',  bunkM: 0.36 },
   { id: 'HF100_150', label: 'HF 100 – 150kg', bunkM: 0.41 },
   { id: 'HF150_200', label: 'HF 150 – 200kg', bunkM: 0.51 },
   { id: 'HF200_300', label: 'HF 200 – 300kg', bunkM: 0.56 },
@@ -23,9 +24,10 @@ type Inputs = {
   entranceM: number
 }
 
-/** Pull Defaults saved by your Defaults page; safe fallbacks if missing */
+/** Pull Defaults saved by Defaults page; read the exact keys it writes. */
 function getDefaults() {
   try {
+    // try both keys you've used before
     const raw =
       localStorage.getItem('feedpad-defaults') ||
       localStorage.getItem('defaults') ||
@@ -33,17 +35,18 @@ function getDefaults() {
     const j = JSON.parse(raw)
 
     const feedLaneWidth =
-      Number(j.feedLaneWidth ?? j.feed_lane_width ?? j.D1 ?? 4.7) || 4.7
+      Number(j.feedLaneWidth ?? j.D1 ?? 4.7) || 4.7
     const tractorLaneWidth =
-      Number(j.tractorLaneWidth ?? j.tractor_lane_width ?? j.D2 ?? 5.6) || 5.6
+      Number(j.tractorLaneWidth ?? j.D2 ?? 5.6) || 5.6
     const crossoverM =
-      Number(j.crossOverWidth ?? j.crossover ?? j.D12 ?? 0) || 0
+      Number(j.crossOverWidth ?? j.D12 ?? 0) || 0
+    // 🔧 FIX: read the correct key from Defaults.tsx -> feedPadSlopePct
     const slopePct =
-      Number(j.feedPadSlope ?? j.slopePct ?? j.D17 ?? 1.5) || 1.5
+      Number(j.feedPadSlopePct ?? j.D17 ?? 1.0) || 1.0
 
     return { feedLaneWidth, tractorLaneWidth, crossoverM, slopePct }
   } catch {
-    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, crossoverM: 0, slopePct: 1.5 }
+    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, crossoverM: 0, slopePct: 1.0 }
   }
 }
 
@@ -80,7 +83,7 @@ export default function Calculator(): JSX.Element {
     // Width = feed lane width + tractor lane width (from Defaults)
     const width = +(defaults.feedLaneWidth + defaults.tractorLaneWidth).toFixed(2)
 
-    // Slope (%) and elevation rise
+    // Slope (%) and elevation rise (use feedPadSlopePct)
     const slopePct = defaults.slopePct
     const elevationM = +(overallLen * (slopePct / 100)).toFixed(2)
 
