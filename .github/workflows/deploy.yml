@@ -1,10 +1,14 @@
-# .github/workflows/deploy.yml
 name: Deploy to GitHub Pages
 
 on:
   push:
     branches: [ main ]
   workflow_dispatch:
+
+# Ensure only one Pages deployment runs; auto-cancel older ones
+concurrency:
+  group: github-pages
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -14,47 +18,34 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Install deps
-        run: npm install --no-audit --no-fund
+      # Install deps (use ci if lockfile exists; otherwise fall back)
+      - run: npm ci || npm i
 
-      - name: Configure Pages
-        uses: actions/configure-pages@v5
-
-      - name: Build site (force GH Pages base)
+      # Build with the Pages base path so assets resolve correctly
+      - run: npm run build
         env:
-          VITE_BASE: "/${{ github.event.repository.name }}/"
-        run: |
-          echo "Using base: $VITE_BASE"
-          npx vite build --base "$VITE_BASE"
+          VITE_BASE: /${{ github.event.repository.name }}/
 
-      - name: SPA fallback
-        run: cp dist/index.html dist/404.html
+      # Make client-side routing work on Pages
+      - run: cp dist/index.html dist/404.html
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+      # Upload built site as the Pages artifact
+      - uses: actions/upload-pages-artifact@v3
         with:
           path: dist
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
+      - id: deployment
         uses: actions/deploy-pages@v4
-        with:
-          # Increase the internal wait threshold so we don't fail during long CDN purges
-          timeout: 1800000  # 30 minutes in ms
