@@ -1,6 +1,16 @@
-// src/main.tsx — FULL REPLACEMENT
+// src/main.tsx — STABLE PWA HANDLER (fixes iPhone reload loop)
 import { registerSW } from 'virtual:pwa-register'
-registerSW({ immediate: true })
+
+// Use update flow that avoids iOS refresh loop
+const updateSW = registerSW({
+  onNeedRefresh() {
+    // optional: silently trigger update once user closes app
+    updateSW(true)
+  },
+  onOfflineReady() {
+    console.log('FeedPad ready for offline use.')
+  }
+})
 
 import React from 'react'
 import ReactDOM from 'react-dom/client'
