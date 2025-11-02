@@ -8,6 +8,12 @@ type Inputs = {
   turningCircleM: number
 }
 
+/**
+ * Calculator page with minimal, scoped layout:
+ * - Desktop: [Inputs | Outputs] with Actions under Outputs
+ * - Mobile:  Outputs → Actions → Inputs
+ * Buttons are no-ops for now (layout only). Wire to your real calc/save later.
+ */
 export default function Calculator(): JSX.Element {
   const [inp, setInp] = useState<Inputs>({
     cows: 300,
@@ -17,43 +23,43 @@ export default function Calculator(): JSX.Element {
     turningCircleM: 20,
   })
 
-  // Minimal derived values to keep the page useful without touching your logic
+  // Keep the page useful without touching your internal calc module
   const d = useMemo(() => {
     const cowsPerLane = inp.lanes > 0 ? Math.ceil(inp.cows / inp.lanes) : 0
     const feedBunkPerCowM = 0.67
     const totalFeedBunkM = feedBunkPerCowM * inp.cows
-    const surfaceAreaM2 = Math.round(inp.lanes * inp.laneWidthM * 30) // placeholder length for visual only
+    const surfaceAreaM2 = Math.round(inp.lanes * inp.laneWidthM * 30) // placeholder length
     return { cowsPerLane, feedBunkPerCowM, totalFeedBunkM, surfaceAreaM2 }
   }, [inp])
 
   const upd = (patch: Partial<Inputs>) => setInp(p => ({ ...p, ...patch }))
 
-  // Buttons: layout only (no data mutations)
-  const onCalculate = () => { /* hook your real calc here later */ }
-  const onSave = () => { /* hook your real save/export here later */ }
+  // Layout only
+  const onCalculate = () => {}
+  const onSave = () => {}
   const onReset = () => setInp({ cows: 300, weightKg: 600, lanes: 2, laneWidthM: 5, turningCircleM: 20 })
 
   return (
     <div className="calc__container">
       <div className="calc__layout">
 
-        {/* ===== Outputs Summary (right on desktop / top on phone) ===== */}
+        {/* ===== Outputs Summary (right on desktop / top on mobile) ===== */}
         <aside className="calc__summary">
           <div className="calc__card calc__stack">
             <h2>Outputs Summary</h2>
             <div className="calc__summaryGrid">
-              <div className="calc__k">Cows</div>                 <div className="calc__v">{inp.cows.toLocaleString()}</div>
-              <div className="calc__k">Weight range (kg)</div>    <div className="calc__v">{inp.weightKg}</div>
-              <div className="calc__k">Lanes</div>                 <div className="calc__v">{inp.lanes}</div>
-              <div className="calc__k">Cows per lane</div>         <div className="calc__v">{d.cowsPerLane.toLocaleString()}</div>
-              <div className="calc__k">Feed bunk / cow (m)</div>   <div className="calc__v">{d.feedBunkPerCowM.toFixed(2)}</div>
-              <div className="calc__k">Total feed bunk (m)</div>   <div className="calc__v">{d.totalFeedBunkM.toFixed(1)}</div>
-              <div className="calc__k">Surface area (m²)</div>     <div className="calc__v">{d.surfaceAreaM2.toLocaleString()}</div>
+              <div className="calc__k">Cows</div>               <div className="calc__v">{inp.cows.toLocaleString()}</div>
+              <div className="calc__k">Weight range (kg)</div>  <div className="calc__v">{inp.weightKg}</div>
+              <div className="calc__k">Lanes</div>               <div className="calc__v">{inp.lanes}</div>
+              <div className="calc__k">Cows per lane</div>       <div className="calc__v">{d.cowsPerLane.toLocaleString()}</div>
+              <div className="calc__k">Feed bunk / cow (m)</div> <div className="calc__v">{d.feedBunkPerCowM.toFixed(2)}</div>
+              <div className="calc__k">Total feed bunk (m)</div> <div className="calc__v">{d.totalFeedBunkM.toFixed(1)}</div>
+              <div className="calc__k">Surface area (m²)</div>   <div className="calc__v">{d.surfaceAreaM2.toLocaleString()}</div>
             </div>
           </div>
         </aside>
 
-        {/* ===== Buttons (under summary on phone) ===== */}
+        {/* ===== Buttons (under summary on mobile) ===== */}
         <div className="calc__actions">
           <div className="calc__card calc__stack">
             <button onClick={onCalculate}>Calculate</button>
@@ -62,7 +68,7 @@ export default function Calculator(): JSX.Element {
           </div>
         </div>
 
-        {/* ===== Inputs/Form (left on desktop / bottom on phone) ===== */}
+        {/* ===== Inputs/Form (left on desktop / bottom on mobile) ===== */}
         <main className="calc__form">
           <div className="calc__card calc__stack">
             <h2>Inputs</h2>
