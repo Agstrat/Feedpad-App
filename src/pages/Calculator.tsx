@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from 'react'
 
-/* Cow weight → bunk m/cow */
 const COW_CLASSES = [
   { id: 'HF60_100',  label: 'HF 60 – 100kg',  bunkM: 0.36 },
   { id: 'HF100_150', label: 'HF 100 – 150kg', bunkM: 0.41 },
@@ -47,26 +46,25 @@ function getDefaults() {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 const nInt = (s: string, d = 0) => (s.trim() === '' ? d : parseInt(s, 10))
 
-/* Open a formatted window and trigger print() – mirrors your PDF sections */
-function openPdfView(title: string, sections: string) {
-  const w = window.open('', '_blank', 'noopener,noreferrer,width=900')
-  if (!w) return
-  const css = `
-    <style>
-      body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Helvetica,Arial;margin:28px;color:#111}
-      h1{font-size:22px;margin:0 0 16px}
-      h2{font-size:16px;margin:18px 0 8px}
-      .box{border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin:10px 0}
-      .kv{display:grid;grid-template-columns:1fr auto;gap:8px 14px}
-      .k{color:#6b7280}
-      .v{font-weight:700}
-      .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
-      button{margin-top:14px;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff}
-      @media print{button{display:none}}
-    </style>`
-  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${css}</head><body>${sections}<button onclick="print()">Print</button></body></html>`)
-  w.document.close()
-  w.focus()
+/* Robust print window using Blob URL (prevents about:blank “white page”) */
+function openPdfViewBlob(title: string, sections: string) {
+  const html = `<!doctype html><html><head><meta charset="utf-8">
+  <title>${title}</title>
+  <style>
+    body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Helvetica,Arial;margin:28px;color:#111}
+    h1{font-size:22px;margin:0 0 16px}
+    h2{font-size:16px;margin:18px 0 8px}
+    .box{border:1px solid #e5e7eb;border-radius:12px;padding:12px 14px;margin:10px 0}
+    .kv{display:grid;grid-template-columns:1fr auto;gap:8px 14px}
+    .k{color:#6b7280}.v{font-weight:700}
+    .mono{font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace}
+    button{margin-top:14px;padding:10px 14px;border-radius:10px;border:1px solid #e5e7eb;background:#fff}
+    @media print{button{display:none}}
+  </style></head><body>${sections}
+  <button onclick="print()">Print</button></body></html>`
+  const blob = new Blob([html], { type: 'text/html' })
+  const url = URL.createObjectURL(blob)
+  window.open(url, '_blank', 'noopener')
 }
 
 export default function Calculator(): JSX.Element {
@@ -85,90 +83,76 @@ export default function Calculator(): JSX.Element {
   const d = useMemo(() => {
     const cowsThatCanEat = Math.round(inp.totalCows * clamp(inp.percentEating, 0, 100) / 100)
     const cowsPerLane = Math.ceil(cowsThatCanEat / inp.lanes)
-
     const perLaneLen = +(cowClass.bunkM * cowsPerLane).toFixed(2)
-
-    // include crossover in per-lane length display (to mirror your PDF line)
     const feedLaneLenIncXover = +(perLaneLen + defs.xover).toFixed(2)
-
     const overallLen = +(perLaneLen + inp.entranceM + inp.turningCircleM + defs.xover).toFixed(2)
-
-    // width by lane geometry
     const width =
       inp.lanes === 4
         ? +( (4*defs.d1) + (2*defs.d2) + (4*defs.d3) + (3*defs.d4) ).toFixed(2)
         : +( (2*defs.d1) + (2*defs.d3) + (2*defs.d4) + (defs.d2) ).toFixed(2)
-
     const slopePct = defs.slopePct
     const elevationM = +(overallLen * (slopePct / 100)).toFixed(2)
-
     const catchmentArea = Math.round(overallLen * width)
-
-    return {
-      cowsThatCanEat, cowsPerLane, perLaneLen,
-      feedLaneLenIncXover, overallLen, width,
-      slopePct, elevationM, catchmentArea
-    }
+    return { cowsThatCanEat, cowsPerLane, perLaneLen, feedLaneLenIncXover, overallLen, width, slopePct, elevationM, catchmentArea }
   }, [inp, defs, cowClass])
 
   const upd = (patch: Partial<Inputs>) => setInp(p => ({ ...p, ...patch }))
 
+  // persist “last calculation” for /export page
+  const persistLast = () => {
+    const payload = {
+      inputs: inp,
+      defaults: defs,
+      cowClass,
+      outputs: d,
+      ts: Date.now()
+    }
+    localStorage.setItem('feedpad-last-calc', JSON.stringify(payload))
+  }
+
   return (
     <div className="calc-wrap">
-      {/* INPUTS */}
       <section className="card">
         <h2 style={{ margin: 0, marginBottom: 8 }}>Feedpad Calculator</h2>
         <div className="inputs-grid">
-          <label>
-            Total Cows
+          <label> Total Cows
             <input type="number" min={0} step={1}
               value={inp.totalCows}
-              onChange={e => upd({ totalCows: nInt(e.target.value, 0) })}
-            />
+              onChange={e => upd({ totalCows: nInt(e.target.value, 0) })}/>
           </label>
 
-          <label>
-            % that can eat at once
+          <label>% that can eat at once
             <input type="number" min={0} max={100} step={1}
               value={inp.percentEating}
-              onChange={e => upd({ percentEating: clamp(nInt(e.target.value, 0), 0, 100) })}
-            />
+              onChange={e => upd({ percentEating: clamp(nInt(e.target.value, 0), 0, 100) })}/>
           </label>
 
-          <label>
-            Feed Lanes
+          <label>Feed Lanes
             <select value={inp.lanes} onChange={e => upd({ lanes: Number(e.target.value) as 2 | 4 })}>
-              <option value={2}>2</option>
-              <option value={4}>4</option>
+              <option value={2}>2</option><option value={4}>4</option>
             </select>
           </label>
 
-          <label>
-            Cow Weight Range
+          <label>Cow Weight Range
             <select value={inp.cowClassId} onChange={e => upd({ cowClassId: e.target.value as CowClassId })}>
               {COW_CLASSES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
             </select>
           </label>
 
-          <label>
-            Turning circle allowance (m)
+          <label>Turning circle allowance (m)
             <input type="number" min={0} step={1}
               value={inp.turningCircleM}
-              onChange={e => upd({ turningCircleM: nInt(e.target.value, 0) })}
-            />
+              onChange={e => upd({ turningCircleM: nInt(e.target.value, 0) })}/>
           </label>
 
-          <label>
-            Entrance allowance (m)
+          <label>Entrance allowance (m)
             <input type="number" min={0} step={1}
               value={inp.entranceM}
-              onChange={e => upd({ entranceM: nInt(e.target.value, 0) })}
-            />
+              onChange={e => upd({ entranceM: nInt(e.target.value, 0) })}/>
           </label>
         </div>
       </section>
 
-      {/* SUMMARY */}
       <section className="card">
         <h2 style={{ margin: 0, marginBottom: 8 }}>Outputs Summary</h2>
         <div className="summary-grid">
@@ -184,10 +168,10 @@ export default function Calculator(): JSX.Element {
         </div>
       </section>
 
-      {/* BUTTONS */}
       <section className="actions">
         <button className="btn" onClick={() => {
-          const cls = COW_CLASSES.find(c => c.id === inp.cowClassId)!
+          persistLast()
+          const cls = cowClass
           const herd = `
             <h1>Feed Pad Summary</h1>
             <h2>Herd &amp; Feed Pad Details</h2>
@@ -200,40 +184,38 @@ export default function Calculator(): JSX.Element {
               <div class="k">Cow lanes</div><div class="v">${inp.lanes}</div>
               <div class="k">Cows per lane</div><div class="v">${d.cowsPerLane.toLocaleString()} cows</div>
               <div class="k">Feed lane length (includes crossover)</div><div class="v">${d.feedLaneLenIncXover.toFixed(2)} m</div>
-              <div class="k">Center crossover allowance</div><div class="v">${defs.xover.toFixed(2)} m</div>
+              <div class="k">Center crossover allowance</div><div class="v">${getDefaults().xover.toFixed(2)} m</div>
               <div class="k">Overall length of feed pad (incl. entrance, turning &amp; crossover)</div><div class="v">${d.overallLen.toFixed(2)} m</div>
               <div class="k">Overall feed pad width</div><div class="v">${d.width.toFixed(2)} m</div>
-            </div>
-          `
+            </div>`
           const tech = `
             <h2>Feed Pad Technical Specifications</h2>
             <div class="box kv mono">
-              <div class="k">Cow lane width (D1)</div><div class="v">${defs.d1.toFixed(2)} m</div>
-              <div class="k">Tractor lane width (D2)</div><div class="v">${defs.d2.toFixed(2)} m</div>
-              <div class="k">Feed wall thickness (D3)</div><div class="v">${defs.d3.toFixed(2)} m</div>
-              <div class="k">Nib wall thickness (D4)</div><div class="v">${defs.d4.toFixed(2)} m</div>
-              <div class="k">Feed above cow lane</div><div class="v">${defs.feedAbove.toFixed(3)} m</div>
-              <div class="k">Feed wall post spacing</div><div class="v">${defs.postSp} m</div>
-              <div class="k">End offset</div><div class="v">${defs.endOff.toFixed(2)} m</div>
-              <div class="k">Stay offset</div><div class="v">${defs.stayOff.toFixed(2)} m</div>
+              <div class="k">Cow lane width (D1)</div><div class="v">${getDefaults().d1.toFixed(2)} m</div>
+              <div class="k">Tractor lane width (D2)</div><div class="v">${getDefaults().d2.toFixed(2)} m</div>
+              <div class="k">Feed wall thickness (D3)</div><div class="v">${getDefaults().d3.toFixed(2)} m</div>
+              <div class="k">Nib wall thickness (D4)</div><div class="v">${getDefaults().d4.toFixed(2)} m</div>
+              <div class="k">Feed above cow lane</div><div class="v">${getDefaults().feedAbove.toFixed(3)} m</div>
+              <div class="k">Feed wall post spacing</div><div class="v">${getDefaults().postSp} m</div>
               <div class="k">Entrance allowance (D14)</div><div class="v">${inp.entranceM} m</div>
               <div class="k">Turning circle allowance (D13)</div><div class="v">${inp.turningCircleM} m</div>
               <div class="k">Feed pad slope</div><div class="v">${d.slopePct.toFixed(2)} %</div>
               <div class="k">Elevation rise @ slope</div><div class="v">${d.elevationM.toFixed(2)} m</div>
-            </div>
-          `
+            </div>`
           const area = `
             <h2>Catchment / Surface Area</h2>
             <div class="box kv">
-              <div class="k">Feed pad surface area (OP5 × OP6)</div><div class="v">${d.catchmentArea.toLocaleString()} m²</div>
-            </div>
-          `
-          openPdfView('Feed Pad Summary', herd + tech + area)
+              <div class="k">Feed pad surface area</div><div class="v">${d.catchmentArea.toLocaleString()} m²</div>
+            </div>`
+          openPdfViewBlob('Feed Pad Summary', herd + tech + area)
         }}>
           Save Calculations (PDF)
         </button>
 
-        <button className="btn secondary" onClick={() => (location.href = import.meta.env.BASE_URL)}>
+        <button className="btn secondary" onClick={() => {
+          persistLast()
+          location.href = import.meta.env.BASE_URL
+        }}>
           Save &amp; Return to Home
         </button>
       </section>
