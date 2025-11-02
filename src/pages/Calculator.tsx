@@ -1,11 +1,16 @@
 import React, { useMemo, useState } from 'react'
 
-/** Cow weight range → bunk allowance (m/cow). Adjust labels/values as needed. */
+/** Weight options -> bunk allowance (m/cow) */
 const COW_CLASSES = [
-  { id: 'HF500', label: 'HF 500 – 590 kg', bunkM: 0.61 },
-  { id: 'HF590', label: 'HF 590 – 690 kg', bunkM: 0.67 },
-  { id: 'HF690', label: 'HF 690 – 780 kg', bunkM: 0.72 },
-  { id: 'JX410', label: 'Jersey 410 – 500 kg', bunkM: 0.56 },
+  { id: 'HF60_100', label: 'HF 60 – 100kg',  bunkM: 0.36 },
+  { id: 'HF100_150', label: 'HF 100 – 150kg', bunkM: 0.41 },
+  { id: 'HF150_200', label: 'HF 150 – 200kg', bunkM: 0.51 },
+  { id: 'HF200_300', label: 'HF 200 – 300kg', bunkM: 0.56 },
+  { id: 'HF300_400', label: 'HF 300 – 400kg', bunkM: 0.61 },
+  { id: 'JX410_500', label: 'JX 410 – 500kg',  bunkM: 0.56 },
+  { id: 'HF500_590', label: 'HF 500 – 590kg', bunkM: 0.61 },
+  { id: 'HF590_690', label: 'HF 590 – 690kg', bunkM: 0.67 },
+  { id: 'HF690_780', label: 'HF 690 – 780kg', bunkM: 0.72 },
 ] as const
 type CowClassId = typeof COW_CLASSES[number]['id']
 
@@ -18,10 +23,9 @@ type Inputs = {
   entranceM: number
 }
 
-/** Pull Defaults from localStorage with safe fallbacks */
+/** Pull Defaults saved by your Defaults page; safe fallbacks if missing */
 function getDefaults() {
   try {
-    // Try a few common keys; fallback to constants if not found
     const raw =
       localStorage.getItem('feedpad-defaults') ||
       localStorage.getItem('defaults') ||
@@ -34,10 +38,12 @@ function getDefaults() {
       Number(j.tractorLaneWidth ?? j.tractor_lane_width ?? j.D2 ?? 5.6) || 5.6
     const crossoverM =
       Number(j.crossOverWidth ?? j.crossover ?? j.D12 ?? 0) || 0
+    const slopePct =
+      Number(j.feedPadSlope ?? j.slopePct ?? j.D17 ?? 1.5) || 1.5
 
-    return { feedLaneWidth, tractorLaneWidth, crossoverM }
+    return { feedLaneWidth, tractorLaneWidth, crossoverM, slopePct }
   } catch {
-    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, crossoverM: 0 }
+    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, crossoverM: 0, slopePct: 1.5 }
   }
 }
 
@@ -49,15 +55,15 @@ export default function Calculator(): JSX.Element {
     totalCows: 600,
     percentEating: 100,
     lanes: 2,
-    cowClassId: 'HF500',
+    cowClassId: 'HF590_690',
     turningCircleM: 25,
     entranceM: 20,
   })
 
   const defaults = getDefaults()
-  const cowClass = COW_CLASSES.find(c => c.id === inp.cowClassId)!  // always exists
+  const cowClass = COW_CLASSES.find(c => c.id === inp.cowClassId)!  // guaranteed
 
-  /** Derived — EXACT fields you requested in the same wording */
+  /** Derived fields for summary */
   const d = useMemo(() => {
     const cowsThatCanEat = Math.round(inp.totalCows * clamp(inp.percentEating, 0, 100) / 100)
     const cowsPerLane = inp.lanes > 0 ? Math.ceil(cowsThatCanEat / inp.lanes) : 0
@@ -74,6 +80,10 @@ export default function Calculator(): JSX.Element {
     // Width = feed lane width + tractor lane width (from Defaults)
     const width = +(defaults.feedLaneWidth + defaults.tractorLaneWidth).toFixed(2)
 
+    // Slope (%) and elevation rise
+    const slopePct = defaults.slopePct
+    const elevationM = +(overallLen * (slopePct / 100)).toFixed(2)
+
     const catchmentArea = Math.round(overallLen * width)
 
     return {
@@ -83,6 +93,8 @@ export default function Calculator(): JSX.Element {
       feedLaneLenIncXover,
       overallLen,
       width,
+      slopePct,
+      elevationM,
       catchmentArea,
     }
   }, [inp, cowClass, defaults])
@@ -176,6 +188,12 @@ export default function Calculator(): JSX.Element {
 
           <div className="k">Feedpad width</div>
           <div className="v">{d.width.toFixed(2)} m</div>
+
+          <div className="k">Feedpad slope (%)</div>
+          <div className="v">{d.slopePct.toFixed(2)}</div>
+
+          <div className="k">Feedpad elevation (m)</div>
+          <div className="v">{d.elevationM.toFixed(2)} m</div>
 
           <div className="k">Catchment area</div>
           <div className="v">{d.catchmentArea.toLocaleString()} m²</div>
