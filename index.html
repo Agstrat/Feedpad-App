@@ -2,40 +2,20 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
     <title>FeedPad</title>
-
-    <!-- ONE-TIME HARD SW/CACHE PURGE FOR RECOVERY -->
-    <script>
-      (function () {
-        if (!('serviceWorker' in navigator)) return;
-        const onceKey = 'sw_purged_once_v3';
-        const already = sessionStorage.getItem(onceKey);
-
-        async function purge() {
-          try {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map(r => r.unregister()));
-          } catch (e) {}
-          if (window.caches && caches.keys) {
-            try {
-              const keys = await caches.keys();
-              await Promise.all(keys.map(k => caches.delete(k)));
-            } catch (e) {}
-          }
-        }
-
-        if (!already && navigator.serviceWorker.controller) {
-          sessionStorage.setItem(onceKey, '1');
-          purge().finally(() => location.reload());
-        } else {
-          purge();
-        }
-      })();
-    </script>
+    <meta name="description" content="FeedPad calculator and defaults tool" />
+    <meta name="theme-color" content="#0b5ed7" />
+    <!-- Favicon (served from /public/assets). Use RELATIVE path so it works on GitHub Pages base. -->
+    <link rel="icon" href="assets/logo.png" />
   </head>
   <body>
+    <noscript>You need JavaScript enabled to run this app.</noscript>
     <div id="root"></div>
+    <!-- Vite boot entry -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
