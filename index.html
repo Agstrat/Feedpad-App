@@ -2,20 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>FeedPad</title>
-    <meta name="description" content="FeedPad calculator and defaults tool" />
-    <meta name="theme-color" content="#0b5ed7" />
-    <!-- Favicon (served from /public/assets). Use RELATIVE path so it works on GitHub Pages base. -->
-    <link rel="icon" href="assets/logo.png" />
+
+    <!-- FORCE-PURGE any old service workers & caches (one-shot per tab) -->
+    <script>
+      (async function () {
+        try {
+          // show JS errors instead of a silent white screen
+          window.onerror = function (msg, src, line, col, err) {
+            const pre = document.createElement('pre');
+            pre.style.cssText = 'white-space:pre-wrap;padding:12px;margin:12px;border:1px solid #e5e7eb;border-radius:10px;background:#fff4f4;color:#b91c1c;font-family:ui-monospace,Menlo,Consolas,monospace';
+            pre.textContent = 'Runtime error:\n' + (err && err.stack ? err.stack : (msg + ' @ ' + src + ':' + line + ':' + col));
+            document.body.appendChild(pre);
+          };
+
+          const KEY = 'sw_purged_v5';
+          if (!sessionStorage.getItem(KEY)) {
+            sessionStorage.setItem(KEY, '1');
+
+            if ('serviceWorker' in navigator) {
+              const regs = await navigator.serviceWorker.getRegistrations();
+              await Promise.all(regs.map(r => r.unregister().catch(()=>{})));
+              if (self.caches && caches.keys) {
+                const keys = await caches.keys();
+                await Promise.all(keys.map(k => caches.delete(k).catch(()=>{})));
+              }
+            }
+          }
+        } catch {}
+      })();
+    </script>
   </head>
   <body>
-    <noscript>You need JavaScript enabled to run this app.</noscript>
     <div id="root"></div>
-    <!-- Vite boot entry -->
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
