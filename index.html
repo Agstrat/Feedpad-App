@@ -2,17 +2,14 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>FeedPad</title>
 
     <!-- ONE-TIME HARD SW/CACHE PURGE FOR RECOVERY -->
     <script>
       (function () {
         if (!('serviceWorker' in navigator)) return;
-        const onceKey = 'sw_purged_once_v2';
+        const onceKey = 'sw_purged_once_v3';
         const already = sessionStorage.getItem(onceKey);
 
         async function purge() {
@@ -32,11 +29,10 @@
           sessionStorage.setItem(onceKey, '1');
           purge().finally(() => location.reload());
         } else {
-          purge(); // proactive even if not controlled
+          purge();
         }
       })();
     </script>
-
   </head>
   <body>
     <div id="root"></div>
