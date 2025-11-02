@@ -1,7 +1,7 @@
-/* ---- PAGE-LEVEL SCOPED STYLES ONLY (Calculator) ---- */
+/* ===== Scoped styles for Calculator page only (won't affect Defaults/Home) ===== */
 .calc__container { max-width: 1100px; margin: 0 auto; padding: 16px; }
 
-/* Desktop: form left, summary right, actions under summary */
+/* Desktop: form left, summary right, actions under summary column */
 .calc__layout {
   display: grid;
   grid-template-columns: 1fr 360px;
@@ -12,6 +12,7 @@
 .calc__summary { order: 2; }
 .calc__actions { order: 3; }
 
+/* Phone/tablet: stack so buttons sit BELOW the summary */
 @media (max-width: 820px) {
   .calc__layout { grid-template-columns: 1fr; }
   .calc__summary { order: 1; }
@@ -20,7 +21,7 @@
   .calc__actions > * { width: 100%; }
 }
 
-/* Light frame so phone view is readable without touching global styles */
+/* Light card frame for readability (scoped) */
 .calc__card {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -29,7 +30,12 @@
 }
 .calc__stack { display: grid; gap: 12px; }
 
-/* Optional tidy for summary rows */
-.calc__summaryGrid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; font-size: 14px; }
+/* Summary rows */
+.calc__summaryGrid {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px 12px;
+  font-size: 14px;
+}
 .calc__k { opacity: .75; }
 .calc__v { font-weight: 600; text-align: right; }
