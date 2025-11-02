@@ -1,29 +1,31 @@
-// src/App.tsx — DROP-IN
-import { NavLink, Routes, Route } from 'react-router-dom'
-import Start from './pages/Start.tsx'
-import Calculator from './pages/Calculator.tsx'
-import Defaults from './pages/Defaults.tsx'
+import React from 'react'
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import Start from './pages/Start'
+import Calculator from './pages/Calculator'
+import DefaultsPage from './pages/Defaults'
+import ExportPage from './pages/export'
 
 export default function App() {
+  const base = import.meta.env.BASE_URL
   return (
-    <div style={{ maxWidth: 980, margin: '0 auto', padding: 16 }}>
-      <header style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-        <img src={`${import.meta.env.BASE_URL}assets/logo.png`} alt="FeedPad" style={{ height: 32 }} />
-        <nav style={{ display: 'flex', gap: 12 }}>
-          <NavLink to="/" end>Home</NavLink>
-          <NavLink to="/calculator">Calculator</NavLink>
-          <NavLink to="/defaults">Defaults</NavLink>
+    <BrowserRouter basename={base}>
+      <div style={{ padding: 12 }}>
+        <nav style={{ display: 'flex', gap: 16, alignItems: 'center', marginBottom: 8 }}>
+          <Link to="/" style={{ fontWeight: 800, textDecoration: 'none', color: '#111' }}>AGSTRAT</Link>
+          <Link to="/">Home</Link>
+          <Link to="/calculator">Calculator</Link>
+          <Link to="/defaults">Defaults</Link>
+          <div style={{ marginLeft: 'auto', color: '#6b7280', fontSize: 12 }}>
+            BASE_URL: {base}
+          </div>
         </nav>
-        <div style={{ marginLeft: 'auto', opacity: 0.6, fontSize: 12 }}>
-          BASE_URL: {import.meta.env.BASE_URL}
-        </div>
-      </header>
-
+      </div>
       <Routes>
-        <Route path="/" element={<Start />} />
-        <Route path="/calculator" element={<Calculator />} />
-        <Route path="/defaults" element={<Defaults />} />
+        <Route path="/" element={<Start/>} />
+        <Route path="/calculator" element={<Calculator/>} />
+        <Route path="/defaults" element={<DefaultsPage/>} />
+        <Route path="/export" element={<ExportPage/>} />
       </Routes>
-    </div>
+    </BrowserRouter>
   )
 }
