@@ -1,4 +1,4 @@
-// src/pages/Calculator.tsx — FULL DROP-IN (fixes slope key -> feedPadSlopePct)
+// src/pages/Calculator.tsx — FULL DROP-IN (lanes 2/4 + correct width + working PDF)
 import React, { useMemo, useState } from 'react'
 
 /** Weight options -> bunk allowance (m/cow) */
@@ -18,7 +18,7 @@ type CowClassId = typeof COW_CLASSES[number]['id']
 type Inputs = {
   totalCows: number
   percentEating: number
-  lanes: number
+  lanes: 2 | 4
   cowClassId: CowClassId
   turningCircleM: number
   entranceM: number
@@ -27,31 +27,46 @@ type Inputs = {
 /** Pull Defaults saved by Defaults page; read the exact keys it writes. */
 function getDefaults() {
   try {
-    // try both keys you've used before
     const raw =
       localStorage.getItem('feedpad-defaults') ||
       localStorage.getItem('defaults') ||
       '{}'
     const j = JSON.parse(raw)
 
-    const feedLaneWidth =
-      Number(j.feedLaneWidth ?? j.D1 ?? 4.7) || 4.7
-    const tractorLaneWidth =
-      Number(j.tractorLaneWidth ?? j.D2 ?? 5.6) || 5.6
-    const crossoverM =
-      Number(j.crossOverWidth ?? j.D12 ?? 0) || 0
-    // 🔧 FIX: read the correct key from Defaults.tsx -> feedPadSlopePct
-    const slopePct =
-      Number(j.feedPadSlopePct ?? j.D17 ?? 1.0) || 1.0
+    const feedLaneWidth      = Number(j.feedLaneWidth)      || Number(j.D1)  || 4.7
+    const tractorLaneWidth   = Number(j.tractorLaneWidth)   || Number(j.D2)  || 5.6
+    const feedWallThickness  = Number(j.feedWallThickness)  || Number(j.D3)  || 0.2
+    const nibWallThickness   = Number(j.nibWallThickness)   || Number(j.D4)  || 0.15
+    const crossoverM         = Number(j.crossOverWidth)     || Number(j.D12) || 0
+    const slopePct           = Number(j.feedPadSlopePct)    || Number(j.D17) || 1.0
 
-    return { feedLaneWidth, tractorLaneWidth, crossoverM, slopePct }
+    return { feedLaneWidth, tractorLaneWidth, feedWallThickness, nibWallThickness, crossoverM, slopePct }
   } catch {
-    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, crossoverM: 0, slopePct: 1.0 }
+    return { feedLaneWidth: 4.7, tractorLaneWidth: 5.6, feedWallThickness: 0.2, nibWallThickness: 0.15, crossoverM: 0, slopePct: 1.0 }
   }
 }
 
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 const nInt = (s: string, d = 0) => (s.trim() === '' ? d : parseInt(s, 10))
+
+/** Simple print helper that renders a minimal summary page and triggers print() */
+function printSummary(title: string, html: string) {
+  const w = window.open('', '_blank', 'noopener,noreferrer,width=900')
+  if (!w) return
+  const styles = `
+    <style>
+      body{font-family:-apple-system,system-ui,Segoe UI,Roboto,Helvetica,Arial;margin:24px;color:#111}
+      h1{font-size:22px;margin:0 0 12px}
+      table{border-collapse:collapse;width:100%}
+      td{padding:6px 8px;border-bottom:1px solid #eee}
+      td.k{opacity:.75}
+      td.v{text-align:right;font-weight:700}
+      @media print{button{display:none}}
+    </style>`
+  w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${title}</title>${styles}</head><body>${html}<button onclick="print()">Print</button></body></html>`)
+  w.document.close()
+  w.focus()
+}
 
 export default function Calculator(): JSX.Element {
   const [inp, setInp] = useState<Inputs>({
@@ -80,8 +95,15 @@ export default function Calculator(): JSX.Element {
     // Overall length = per-lane length + entrance + turning + crossover
     const overallLen = +(perLaneLen + inp.entranceM + inp.turningCircleM + defaults.crossoverM).toFixed(2)
 
-    // Width = feed lane width + tractor lane width (from Defaults)
-    const width = +(defaults.feedLaneWidth + defaults.tractorLaneWidth).toFixed(2)
+    // ===== Width from lane geometry (uses Defaults d1..d4) =====
+    const d1 = defaults.feedLaneWidth
+    const d2 = defaults.tractorLaneWidth
+    const d3 = defaults.feedWallThickness
+    const d4 = defaults.nibWallThickness
+    const width =
+      inp.lanes === 4
+        ? +( (4*d1) + (2*d2) + (4*d3) + (3*d4) ).toFixed(2)
+        : +( (2*d1) + (2*d3) + (2*d4) + (d2) ).toFixed(2)
 
     // Slope (%) and elevation rise (use feedPadSlopePct)
     const slopePct = defaults.slopePct
@@ -131,11 +153,13 @@ export default function Calculator(): JSX.Element {
 
           <label>
             Feed Lanes
-            <input
-              type="number" min={1} step={1}
+            <select
               value={inp.lanes}
-              onChange={e => upd({ lanes: Math.max(1, nInt(e.target.value, 1)) })}
-            />
+              onChange={e => upd({ lanes: Number(e.target.value) as 2 | 4 })}
+            >
+              <option value={2}>2</option>
+              <option value={4}>4</option>
+            </select>
           </label>
 
           <label>
@@ -205,9 +229,30 @@ export default function Calculator(): JSX.Element {
 
       {/* ===== Actions (BOTTOM) ===== */}
       <section className="actions">
-        <button className="btn" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+        <button
+          className="btn"
+          onClick={() => {
+            const rows = [
+              ['Cows that can eat at once', d.cowsThatCanEat.toLocaleString()],
+              ['Bunk allowance (m/cow)', d.bunkPerCow.toFixed(2)],
+              ['Cows per lane', d.cowsPerLane.toLocaleString()],
+              ['Feed lane length (incl. crossover)', `${d.feedLaneLenIncXover.toFixed(2)} m`],
+              ['Overall feedpad length', `${d.overallLen.toFixed(2)} m`],
+              ['Feedpad width', `${d.width.toFixed(2)} m`],
+              ['Feedpad slope (%)', d.slopePct.toFixed(2)],
+              ['Feedpad elevation (m)', `${d.elevationM.toFixed(2)} m`],
+              ['Catchment area', `${d.catchmentArea.toLocaleString()} m²`],
+            ]
+            const html = `
+              <h1>Feedpad Calculations</h1>
+              <table>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</table>
+            `
+            printSummary('Feedpad Calculations', html)
+          }}
+        >
           Save Calculations (PDF)
         </button>
+
         <button className="btn secondary" onClick={() => (location.href = import.meta.env.BASE_URL)}>
           Save &amp; Return to Home
         </button>
