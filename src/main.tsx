@@ -1,19 +1,21 @@
-// main.tsx (top of file, before React mounts)
-if ('serviceWorker' in navigator && !localStorage.getItem('sw-cleaned')) {
-  const expectedScope = (import.meta.env.BASE_URL || '/').endsWith('/')
-    ? import.meta.env.BASE_URL
-    : import.meta.env.BASE_URL + '/';
+// src/main.tsx — minimal, stable mount
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { HashRouter } from 'react-router-dom'
+import App from './App'
+import './index.css'
 
-  navigator.serviceWorker.getRegistrations().then(regs => {
-    const promises = regs.map(reg => {
-      // If scope doesn't start with our current base, nuke it
-      if (!reg.scope.endsWith(expectedScope)) {
-        return reg.unregister();
-      }
-      return Promise.resolve(false);
-    });
-    Promise.allSettled(promises).finally(() => {
-      localStorage.setItem('sw-cleaned', '1');
-    });
-  });
+const rootEl = document.getElementById('root')
+if (!rootEl) {
+  const m = 'Root element #root not found'
+  console.error(m)
+  alert(m)
 }
+
+ReactDOM.createRoot(rootEl!).render(
+  <React.StrictMode>
+    <HashRouter>
+      <App />
+    </HashRouter>
+  </React.StrictMode>
+)
