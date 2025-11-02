@@ -1,12 +1,12 @@
-// vite.config.ts
+// vite.config.ts — FULL REPLACEMENT
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
-  // GitHub Pages base comes from your workflow as VITE_BASE
-  const base = env.VITE_BASE || '/'
+  // Keep your GitHub Pages base path behaviour (set in your workflow)
+  const base = env.VITE_BASE ?? '/'
 
   return {
     base,
@@ -14,46 +14,37 @@ export default defineConfig(({ mode }) => {
       react(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['assets/logo.png'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'mask-icon.svg'],
         manifest: {
-          name: 'FeedPad',
+          name: 'FeedPad App',
           short_name: 'FeedPad',
-          description: 'FeedPad calculator & defaults — works offline.',
+          description: 'FeedPad calculator and defaults tool',
           theme_color: '#0f62fe',
-          background_color: '#f5f7fb',
+          background_color: '#ffffff',
           display: 'standalone',
-          start_url: `${base}`,
-          scope: `${base}`,
+          scope: base,
+          start_url: base,
           icons: [
-            { src: `${base}assets/logo.png`, sizes: '192x192', type: 'image/png' },
-            { src: `${base}assets/logo.png`, sizes: '512x512', type: 'image/png' },
-            { src: `${base}assets/logo.png`, sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: 'pwa-192x192.png', sizes: '192x192', type: 'image/png' },
+            { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png' },
+            { src: 'pwa-512x512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' }
           ],
         },
         workbox: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
-          navigateFallback: `${base}index.html`,
+          // Cache the built app and common static assets so it runs offline
+          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
           runtimeCaching: [
             {
-              urlPattern: ({ request }) => request.mode === 'navigate',
+              urlPattern: /^https?:\/\/.*/i,
               handler: 'NetworkFirst',
               options: {
-                cacheName: 'html-nav',
-                networkTimeoutSeconds: 3,
-                expiration: { maxEntries: 30, maxAgeSeconds: 7 * 24 * 60 * 60 },
-              },
-            },
-            {
-              urlPattern: ({ request, sameOrigin }) => sameOrigin && request.destination === 'image',
-              handler: 'StaleWhileRevalidate',
-              options: {
-                cacheName: 'images',
-                expiration: { maxEntries: 100, maxAgeSeconds: 30 * 24 * 60 * 60 },
-              },
-            },
-          ],
-        },
-      }),
-    ],
+                cacheName: 'feedpad-runtime',
+                expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 7 }
+              }
+            }
+          ]
+        }
+      })
+    ]
   }
 })
