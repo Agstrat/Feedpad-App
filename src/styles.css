@@ -1,96 +1,115 @@
-:root { --btn:#0f62fe; --btnh:#0043ce; --bg:#f5f7fb; --muted:#475467; }
-* { box-sizing:border-box }
-html,body,#root { height:100% }
-body { margin:0; font:16px/1.4 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; background:var(--bg); color:#111; }
-.wrap { min-height:100%; display:grid; place-items:center; padding:24px; }
-.card { width:100%; max-width:700px; background:#fff; border:1px solid #e5e7eb; border-radius:18px; padding:28px; box-shadow:0 10px 24px rgba(0,0,0,.06); }
-h1 { margin:0 0 6px; }
-.muted { color:var(--muted); margin:0 0 16px; }
-.row { display:flex; gap:10px; flex-wrap:wrap; }
-
-/* Base button (used across pages) */
-.btn { border:0; border-radius:12px; padding:14px 18px; font-weight:700; color:#fff; background:var(--btn); text-decoration:none; }
-.btn:hover { background:var(--btnh); }
-.btn.ghost { background:#e6e9f2; color:#111; }
-
-.grid { display:grid; gap:14px; }
-.two { grid-template-columns:repeat(2,minmax(0,1fr)); }
-.three { grid-template-columns:repeat(3,minmax(0,1fr)); }
-
-label { font-size:12px; color:#475467; display:block; margin-bottom:6px; }
-input, select { width:100%; padding:12px 10px; border-radius:10px; border:1px solid #d0d5dd; background:#fff; }
-
-.out { margin-top:18px; display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
-.k { color:#475467; font-size:12px; margin-bottom:6px; }
-.v { font-weight:800; font-size:22px; }
-
-.bg { position:fixed; inset:0; background:center/cover no-repeat url('assets/logo.png'); opacity:.08; z-index:-1; }
-
-/* Calculator layout helpers — tiny, non-invasive */
-.form-grid{
-  display:grid;
-  grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:12px;
-  align-items:end; /* align bottoms of inputs */
-}
-.form-grid label{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  font-size:12px;
-  color:#6b7280; /* subtle grey like screenshot */
-}
-.form-grid input,
-.form-grid select{
-  height:36px;
-  border:1px solid #d1d5db;
-  border-radius:8px;
-  padding:0 10px;
-  font-size:16px;
+/* ====== Base reset (lean) ====== */
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+html, body {
+  margin: 0;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  color: #111;
+  background: #f7f7f8;
 }
 
-/* Button row container (do NOT override button size here) */
-.actions{
-  display:flex;
-  gap:12px;
-  margin-top:18px;
-  flex-wrap:wrap;
+/* ====== Layout shell ====== */
+.container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 16px;
 }
+header.appbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 0 8px;
+}
+.appbar nav a {
+  text-decoration: none;
+  color: #0b5ed7;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.appbar nav a.active { background: #e7f1ff; }
+.appbar .meta { margin-left: auto; opacity: .6; font-size: 12px; }
 
-/* Smaller button variant for Calculator (and anywhere you apply .btn-sm) */
-.btn-sm{
-  padding:10px 14px;   /* smaller than default 14px 18px */
-  font-size:14px;
-  border-radius:10px;
+/* ====== Cards / panels ====== */
+.card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.03);
 }
+.card h2 { margin: 0 0 10px; font-size: 18px; }
 
-/* Ensure the small size wins even inside .actions */
-.actions .btn.btn-sm{
-  padding:10px 14px;
-  font-size:14px;
-  border-radius:10px;
+/* ====== Form bits ====== */
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.row > label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }
+input[type="number"],
+input[type="text"],
+select {
+  height: 36px;
+  border: 1px solid #d0d7de;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
 }
-/* --- Calculator responsive layout helpers --- */
+input:focus, select:focus { outline: 2px solid #b6e0ff; }
+
+/* ====== Buttons ====== */
+.btn {
+  height: 38px;
+  border: 1px solid #0b5ed7;
+  background: #0b5ed7;
+  color: #fff;
+  border-radius: 10px;
+  padding: 0 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+.btn.secondary {
+  background: #fff;
+  color: #0b5ed7;
+}
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+
+/* ====== Calculator responsive layout ====== */
+/* Desktop: inputs (left), summary (right), actions below summary. */
 .calc-layout {
   display: grid;
-  grid-template-columns: 1fr 320px; /* main + sidebar (outputs) on desktop */
+  grid-template-columns: 1fr 360px;
   gap: 16px;
+  align-items: start;
 }
-.calc-summary { order: 1; }   /* outputs/summary */
-.calc-actions { order: 2; }   /* buttons */
-.calc-form    { order: 3; }   /* inputs */
 
+/* Order ensures buttons sit under the summary column logically */
+.calc-form    { order: 1; }
+.calc-summary { order: 2; }
+.calc-actions { order: 3; }
+
+/* On narrow screens, stack: Summary → Actions → Form */
 @media (max-width: 820px) {
   .calc-layout {
-    grid-template-columns: 1fr; /* stack on phones/tablets */
+    grid-template-columns: 1fr;
   }
+  .calc-summary { order: 1; }
+  .calc-actions { order: 2; }
+  .calc-form    { order: 3; }
+
   .calc-actions {
     display: grid;
     grid-template-columns: 1fr;
     gap: 10px;
   }
-  .calc-actions button,
-  .calc-actions a {
-    width: 100%;
-  }
+  .calc-actions .btn { width: 100%; }
 }
+
+/* Summary list */
+.summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+  font-size: 14px;
+}
+.summary-grid .k { opacity: .7; }
+.summary-grid .v { font-weight: 600; text-align: right; }
+
+/* Helper spacing */
+.stack { display: grid; gap: 12px; }
