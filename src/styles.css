@@ -1,11 +1,10 @@
-/* ===== App shell (neutral) ===== */
+/* ===== Base (neutral, minimal) ===== */
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
-html, body { margin: 0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial; color: #111; background: #f6f7f9; }
+html, body { margin: 0; font-family: -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial; color: #111; background: #f5f7fa; }
 a { color: #0b5ed7; text-decoration: none; }
-img { display: block; }
 
-/* Header strip */
+/* Header */
 .appbar { display: flex; align-items: center; gap: 16px; max-width: 1100px; margin: 0 auto; padding: 14px 16px; }
 .appbar nav { display: flex; gap: 14px; }
 .appbar .meta { margin-left: auto; opacity: .6; font-size: 12px; }
@@ -13,39 +12,37 @@ img { display: block; }
 /* Card */
 .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 16px; box-shadow: 0 1px 2px rgba(0,0,0,.03); }
 
+/* Inputs */
+label { display: grid; gap: 6px; font-size: 14px; }
+input[type="number"], select {
+  width: 100%; height: 42px; padding: 0 12px;
+  border: 1px solid #d0d7de; border-radius: 12px; background: #fff;
+}
+input:focus, select:focus { outline: 2px solid #bfe3ff; }
+
 /* Buttons */
-.btn { height: 44px; padding: 0 16px; border-radius: 12px; border: 1px solid #0b5ed7; background: #0b5ed7; color: #fff; font-weight: 700; cursor: pointer; }
+.btn { height: 46px; border-radius: 12px; border: 1px solid #0b5ed7; background: #0b5ed7; color: #fff; font-weight: 700; padding: 0 16px; cursor: pointer; }
 .btn.secondary { background: #fff; color: #0b5ed7; }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
 
-/* Inputs (global but safe) */
-input[type="text"], input[type="number"], select { height: 42px; border: 1px solid #d0d7de; border-radius: 12px; padding: 0 12px; background: #fff; width: 100%; }
-label { display: grid; gap: 6px; font-size: 14px; }
+/* ===== Calculator page layout (inputs → summary → actions) ===== */
+.calc-wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 28px; display: grid; gap: 16px; }
 
-/* ===== Calculator (scoped) ===== */
-.calc-wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 24px; }
-
-/* Desktop: Inputs (left), Summary (right); Actions stacked under Summary column */
-.calc-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; align-items: start; }
-.calc-form { order: 1; }
-.calc-summary { order: 2; }
-.calc-actions { order: 3; display: grid; gap: 10px; }
+/* Inputs grid */
+.inputs-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 900px) { .inputs-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .inputs-grid { grid-template-columns: 1fr; } }
 
 /* Summary rows */
 .summary-grid { display: grid; grid-template-columns: 1fr auto; gap: 8px 12px; font-size: 15px; }
 .summary-grid .k { opacity: .75; }
 .summary-grid .v { font-weight: 700; text-align: right; }
 
-/* Mobile: stack — Summary → Actions → Form (buttons below outputs) */
-@media (max-width: 820px) {
-  .calc-grid { grid-template-columns: 1fr; }
-  .calc-summary { order: 1; }
-  .calc-actions { order: 2; }
-  .calc-form { order: 3; }
-  .calc-actions .btn { width: 100%; }
-}
+/* Actions aligned full-width on mobile */
+.actions { display: grid; gap: 10px; }
+@media (max-width: 560px) { .actions .btn { width: 100%; } }
 
-/* ===== Defaults page layout (restored to snapshot look) ===== */
+/* ===== Defaults page (restored) ===== */
 .defaults-wrap { max-width: 1100px; margin: 0 auto; padding: 12px 16px 28px; }
 .defaults-panel h1 { margin: 0 0 16px; }
 .defaults-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
