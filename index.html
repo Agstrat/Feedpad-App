@@ -1,33 +1,45 @@
-<!-- HARD SW/CACHE PURGE FOR RECOVERY – REMOVE AFTER CONFIRMED -->
-<script>
-(function () {
-  if (!('serviceWorker' in navigator)) return;
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>FeedPad</title>
 
-  // If a rogue SW is controlling this page, unregister all, clear caches, then reload once.
-  const onceKey = 'sw_purged_once';
-  const already = sessionStorage.getItem(onceKey);
+    <!-- ONE-TIME HARD SW/CACHE PURGE FOR RECOVERY -->
+    <script>
+      (function () {
+        if (!('serviceWorker' in navigator)) return;
+        const onceKey = 'sw_purged_once_v2';
+        const already = sessionStorage.getItem(onceKey);
 
-  async function purge() {
-    try {
-      const regs = await navigator.serviceWorker.getRegistrations();
-      await Promise.all(regs.map(r => r.unregister()));
+        async function purge() {
+          try {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+          } catch (e) {}
+          if (window.caches && caches.keys) {
+            try {
+              const keys = await caches.keys();
+              await Promise.all(keys.map(k => caches.delete(k)));
+            } catch (e) {}
+          }
+        }
 
-      if (window.caches && caches.keys) {
-        const keys = await caches.keys();
-        await Promise.all(keys
-          .filter(k => /workbox|vite|feedpad|runtime|pwa/i.test(k))
-          .map(k => caches.delete(k)));
-      }
-    } catch (e) { /* ignore */ }
-  }
+        if (!already && navigator.serviceWorker.controller) {
+          sessionStorage.setItem(onceKey, '1');
+          purge().finally(() => location.reload());
+        } else {
+          purge(); // proactive even if not controlled
+        }
+      })();
+    </script>
 
-  // If we are under SW control, purge and reload exactly once.
-  if (!already && navigator.serviceWorker.controller) {
-    sessionStorage.setItem(onceKey, '1');
-    purge().finally(() => location.reload());
-  } else {
-    // Also proactively purge even if not controlled (no reload).
-    purge();
-  }
-})();
-</script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
