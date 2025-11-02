@@ -70,3 +70,27 @@ input, select { width:100%; padding:12px 10px; border-radius:10px; border:1px so
   font-size:14px;
   border-radius:10px;
 }
+/* --- Calculator responsive layout helpers --- */
+.calc-layout {
+  display: grid;
+  grid-template-columns: 1fr 320px; /* main + sidebar (outputs) on desktop */
+  gap: 16px;
+}
+.calc-summary { order: 1; }   /* outputs/summary */
+.calc-actions { order: 2; }   /* buttons */
+.calc-form    { order: 3; }   /* inputs */
+
+@media (max-width: 820px) {
+  .calc-layout {
+    grid-template-columns: 1fr; /* stack on phones/tablets */
+  }
+  .calc-actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .calc-actions button,
+  .calc-actions a {
+    width: 100%;
+  }
+}
